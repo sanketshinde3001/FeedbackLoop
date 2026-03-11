@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/admin/Sidebar";
 
 export default async function AdminLayout({
@@ -12,9 +11,12 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Double-check auth (middleware already guards, this is server-side confirmation)
+  // If no user, just render children (e.g. the login page).
+  // Middleware already redirects unauthenticated requests to /admin/login;
+  // adding another redirect here creates an infinite loop because the layout
+  // also wraps the login page itself.
   if (!user) {
-    redirect("/admin/login");
+    return <>{children}</>;
   }
 
   return (

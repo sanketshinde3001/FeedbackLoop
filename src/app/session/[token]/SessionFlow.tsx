@@ -1,0 +1,571 @@
+"use client";
+
+import { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Video,
+  StopCircle,
+  RefreshCw,
+  Send,
+  CheckCircle2,
+  Loader2,
+  MicOff,
+  VideoOff,
+  ChevronRight,
+  SkipForward,
+} from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Step = "welcome" | "emoji" | "recorder" | "preview" | "submitting" | "done";
+
+interface EmojiOption {
+  value: string;
+  label: string;
+  emoji: string;
+}
+
+const EMOJI_OPTIONS: EmojiOption[] = [
+  { value: "loved_it", label: "Loved it!", emoji: "🔥" },
+  { value: "helpful", label: "Very helpful", emoji: "👍" },
+  { value: "needs_improvement", label: "Needs improvement", emoji: "🤔" },
+  { value: "confused", label: "Confused", emoji: "😕" },
+];
+
+interface Props {
+  token: string;
+  attendeeId: string;
+  sessionId: string;
+  attendeeName: string;
+  sessionTitle: string;
+  questions: string[];
+  alreadySubmitted: boolean;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function getBestMimeType() {
+  const types = [
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
+    "video/mp4",
+  ];
+  return types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "video/webm";
+}
+
+// ─── Wrapper card ─────────────────────────────────────────────────────────────
+function Card({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+      {children}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function SessionFlow({
+  token,
+  attendeeName,
+  sessionTitle,
+  questions,
+  alreadySubmitted,
+}: Props) {
+  const [step, setStep] = useState<Step>(alreadySubmitted ? "done" : "welcome");
+  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopStream();
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function stopStream() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }
+
+  // ── Camera ────────────────────────────────────────────────────────────────
+  const startCamera = useCallback(async () => {
+    setCameraReady(false);
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: true,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => setCameraReady(true);
+      }
+    } catch (err) {
+      const msg =
+        err instanceof DOMException && err.name === "NotAllowedError"
+          ? "Camera & microphone access was denied. Please allow permissions in your browser settings."
+          : "Could not access camera. Make sure no other app is using it.";
+      setCameraError(msg);
+    }
+  }, []);
+
+  // Start camera whenever recorder step is active
+  useEffect(() => {
+    if (step === "recorder") {
+      startCamera();
+    } else {
+      // Stop tracks when leaving recorder (preview uses blob URL, not stream)
+      stopStream();
+    }
+  }, [step, startCamera]);
+
+  // Set preview video src when previewUrl changes
+  useEffect(() => {
+    if (previewVideoRef.current && previewUrl) {
+      previewVideoRef.current.src = previewUrl;
+    }
+  }, [previewUrl]);
+
+  // ── Recording ─────────────────────────────────────────────────────────────
+  function startRecording() {
+    if (!streamRef.current || !cameraReady) return;
+
+    chunksRef.current = [];
+    const mimeType = getBestMimeType();
+    const recorder = new MediaRecorder(streamRef.current, { mimeType });
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+      stopStream();
+      setStep("preview");
+    };
+
+    recorder.start(500);
+    recorderRef.current = recorder;
+    setIsRecording(true);
+    setRecordingTime(0);
+
+    timerRef.current = setInterval(() => {
+      setRecordingTime((t) => {
+        if (t >= 299) {
+          stopRecording();
+          return t;
+        }
+        return t + 1;
+      });
+    }, 1000);
+  }
+
+  function stopRecording() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    recorderRef.current?.stop();
+    setIsRecording(false);
+  }
+
+  // ── Re-record ─────────────────────────────────────────────────────────────
+  function handleReRecord() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setRecordingTime(0);
+    setSubmitError(null);
+    setStep("recorder");
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  async function handleSubmit() {
+    setStep("submitting");
+    setSubmitError(null);
+
+    try {
+      const res = await fetch("/api/session/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, emoji_type: selectedEmoji }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Submission failed. Please try again.");
+      }
+
+      setStep("done");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
+      setStep("preview");
+    }
+  }
+
+  // ── Submit with emoji only (no video) ────────────────────────────────────
+  async function handleEmojiOnlySubmit() {
+    setStep("submitting");
+    setSubmitError(null);
+
+    try {
+      const res = await fetch("/api/session/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, emoji_type: selectedEmoji }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Submission failed.");
+      }
+
+      setStep("done");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
+      setStep("emoji");
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCREENS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ── Done / Already submitted ──────────────────────────────────────────────
+  if (step === "done") {
+    return (
+      <Card>
+        <div className="p-10 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+            <CheckCircle2 size={32} className="text-green-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Thank you{alreadySubmitted ? "" : `, ${attendeeName}`}!</h2>
+          <p className="text-gray-500">
+            {alreadySubmitted
+              ? "You've already submitted your feedback for this session."
+              : "Your feedback has been recorded. We really appreciate you taking the time!"}
+          </p>
+          {selectedEmoji && (
+            <p className="text-3xl mt-2">
+              {EMOJI_OPTIONS.find((e) => e.value === selectedEmoji)?.emoji}
+            </p>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Submitting ────────────────────────────────────────────────────────────
+  if (step === "submitting") {
+    return (
+      <Card>
+        <div className="p-10 text-center space-y-4">
+          <Loader2 size={36} className="animate-spin text-indigo-600 mx-auto" />
+          <p className="text-gray-600 font-medium">Saving your feedback…</p>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Welcome ───────────────────────────────────────────────────────────────
+  if (step === "welcome") {
+    return (
+      <Card>
+        <div className="bg-indigo-600 px-8 py-6">
+          <p className="text-indigo-200 text-sm font-medium">Feedback for</p>
+          <h1 className="text-white text-xl font-bold mt-1 leading-tight">
+            {sessionTitle}
+          </h1>
+        </div>
+
+        <div className="p-8 space-y-6">
+          <div>
+            <p className="text-gray-500 text-sm">Hi there,</p>
+            <h2 className="text-2xl font-bold text-gray-900 mt-1">
+              Welcome, {attendeeName} 👋
+            </h2>
+            <p className="text-gray-500 mt-2 text-sm leading-relaxed">
+              We'd love to hear your thoughts. You'll first pick an emoji
+              reaction, then record a short video — it only takes a minute.
+            </p>
+          </div>
+
+          {/* Questions preview */}
+          {questions.length > 0 && (
+            <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                We'll ask you about…
+              </p>
+              <ul className="space-y-1">
+                {questions.slice(0, 3).map((q, i) => (
+                  <li key={i} className="text-sm text-gray-700 flex gap-2">
+                    <span className="text-indigo-400 font-bold shrink-0">
+                      {i + 1}.
+                    </span>
+                    {q}
+                  </li>
+                ))}
+                {questions.length > 3 && (
+                  <li className="text-xs text-gray-400">
+                    + {questions.length - 3} more…
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          <button
+            onClick={() => setStep("emoji")}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+          >
+            Get Started
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Emoji ─────────────────────────────────────────────────────────────────
+  if (step === "emoji") {
+    return (
+      <Card>
+        <div className="p-8 space-y-6">
+          <div>
+            <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
+              Step 1 of 2
+            </p>
+            <h2 className="text-xl font-bold text-gray-900 mt-1">
+              How was the session?
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Pick the one that best describes your experience.
+            </p>
+          </div>
+
+          {submitError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {EMOJI_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedEmoji(opt.value)}
+                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-5 transition-all ${
+                  selectedEmoji === opt.value
+                    ? "border-indigo-500 bg-indigo-50"
+                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <span className="text-4xl">{opt.emoji}</span>
+                <span className="text-sm font-medium text-gray-700">
+                  {opt.label}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-2 pt-1">
+            <button
+              onClick={() => setStep("recorder")}
+              disabled={!selectedEmoji}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Continue to Video
+              <ChevronRight size={16} />
+            </button>
+
+            {selectedEmoji && (
+              <button
+                onClick={handleEmojiOnlySubmit}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <SkipForward size={15} />
+                Submit emoji only (skip video)
+              </button>
+            )}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Recorder ──────────────────────────────────────────────────────────────
+  if (step === "recorder") {
+    return (
+      <Card>
+        <div className="p-6 space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
+              Step 2 of 2
+            </p>
+            <h2 className="text-xl font-bold text-gray-900 mt-1">
+              Record your feedback
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Max 5 minutes. Answer as many questions as you like.
+            </p>
+          </div>
+
+          {/* Questions reference */}
+          {questions.length > 0 && (
+            <div className="bg-indigo-50 rounded-xl px-4 py-3 space-y-1">
+              {questions.map((q, i) => (
+                <p key={i} className="text-xs text-indigo-700">
+                  <span className="font-bold">{i + 1}.</span> {q}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Camera area */}
+          <div className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-video">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+
+            {/* Camera not ready overlay */}
+            {!cameraReady && !cameraError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3">
+                <Loader2 size={28} className="animate-spin opacity-60" />
+                <p className="text-sm opacity-60">Starting camera…</p>
+              </div>
+            )}
+
+            {/* Camera error */}
+            {cameraError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-3 px-6 text-center">
+                <VideoOff size={28} className="opacity-60" />
+                <p className="text-sm opacity-80">{cameraError}</p>
+                <button
+                  onClick={startCamera}
+                  className="mt-2 rounded-lg bg-white/20 px-4 py-2 text-sm hover:bg-white/30 transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* Recording indicator */}
+            {isRecording && (
+              <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 rounded-full px-3 py-1">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-white text-xs font-mono">
+                  {formatTime(recordingTime)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className="flex gap-3">
+            {!isRecording ? (
+              <button
+                onClick={startRecording}
+                disabled={!cameraReady || !!cameraError}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-3 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Video size={16} />
+                Start Recording
+              </button>
+            ) : (
+              <button
+                onClick={stopRecording}
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500 transition-colors animate-pulse"
+              >
+                <StopCircle size={16} />
+                Stop Recording
+              </button>
+            )}
+          </div>
+
+          {/* Permission note */}
+          {!cameraReady && !cameraError && (
+            <p className="text-xs text-gray-400 text-center flex items-center justify-center gap-1">
+              <MicOff size={12} />
+              Allow camera & microphone when your browser asks
+            </p>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Preview ───────────────────────────────────────────────────────────────
+  if (step === "preview") {
+    return (
+      <Card>
+        <div className="p-6 space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              Preview your recording
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Happy with it? Submit, or re-record if you want another take.
+            </p>
+          </div>
+
+          {submitError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              {submitError}
+            </div>
+          )}
+
+          {/* Video preview */}
+          <div className="rounded-2xl overflow-hidden bg-gray-900 aspect-video">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video
+              ref={previewVideoRef}
+              controls
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleReRecord}
+              className="flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <RefreshCw size={15} />
+              Re-record
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+            >
+              <Send size={15} />
+              Submit Feedback
+            </button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return null;
+}
