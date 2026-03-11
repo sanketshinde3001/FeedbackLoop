@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   CalendarDays,
   Users,
   MessageSquareText,
   Smile,
+  Plus,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -87,9 +89,16 @@ export default async function AdminDashboardPage() {
           className="mx-auto text-gray-300 mb-3"
         />
         <p className="text-gray-500 font-medium">No sessions yet</p>
-        <p className="text-sm text-gray-400 mt-1">
+        <p className="text-sm text-gray-400 mt-1 mb-4">
           Create your first session to get started
         </p>
+        <Link
+          href="/admin/sessions/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+        >
+          <Plus size={15} />
+          New Session
+        </Link>
       </div>
     </div>
   );

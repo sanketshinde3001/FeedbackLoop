@@ -47,6 +47,7 @@ export interface Database {
           wall_enabled?: boolean;
           created_at?: string;
         };
+        Relationships: [];
       };
       attendees: {
         Row: {
@@ -79,6 +80,7 @@ export interface Database {
           submitted_at?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       responses: {
         Row: {
@@ -114,6 +116,7 @@ export interface Database {
           approved_for_wall?: boolean;
           created_at?: string;
         };
+        Relationships: [];
       };
       reactions: {
         Row: {
@@ -137,14 +140,33 @@ export interface Database {
           emoji_type?: EmojiType;
           created_at?: string;
         };
+        Relationships: [];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      validate_attendee_token: {
+        Args: { p_token: string };
+        Returns: {
+          attendee_id: string;
+          session_id: string;
+          attendee_name: string;
+          session_title: string;
+          questions: string[];
+          submitted_at: string | null;
+        }[];
+      };
+    };
     Enums: {
       session_status: SessionStatus;
       sentiment_type: SentimentType;
       emoji_type: EmojiType;
     };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
 }
+
