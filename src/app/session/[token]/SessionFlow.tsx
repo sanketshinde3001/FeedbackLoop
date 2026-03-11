@@ -12,10 +12,12 @@ import {
   VideoOff,
   ChevronRight,
   SkipForward,
+  Upload,
 } from "lucide-react";
+import { uploadVideoToCloudinary } from "@/lib/cloudinary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Step = "welcome" | "emoji" | "recorder" | "preview" | "submitting" | "done";
+type Step = "welcome" | "emoji" | "recorder" | "preview" | "uploading" | "submitting" | "done";
 
 interface EmojiOption {
   value: string;
@@ -47,7 +49,8 @@ function formatTime(seconds: number) {
   return `${m}:${s}`;
 }
 
-function getBestMimeType() {
+function getBestMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "video/webm";
   const types = [
     "video/webm;codecs=vp9,opus",
     "video/webm;codecs=vp8,opus",
@@ -79,6 +82,7 @@ export default function SessionFlow({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -88,13 +92,15 @@ export default function SessionFlow({
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const blobRef = useRef<Blob | null>(null); // actual blob kept for Cloudinary upload
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleanup on unmount
+  // Cleanup on unmount — stop camera tracks and revoke blob URL
   useEffect(() => {
     return () => {
       stopStream();
       if (timerRef.current) clearInterval(timerRef.current);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -110,8 +116,13 @@ export default function SessionFlow({
     setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: true,
+        // Cap resolution so low-end phones don't run out of memory mid-recording
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 640, max: 1280 },
+          height: { ideal: 480, max: 720 },
+        },
+        audio: { echoCancellation: true, noiseSuppression: true },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -122,6 +133,8 @@ export default function SessionFlow({
       const msg =
         err instanceof DOMException && err.name === "NotAllowedError"
           ? "Camera & microphone access was denied. Please allow permissions in your browser settings."
+          : err instanceof DOMException && err.name === "NotFoundError"
+          ? "No camera found on this device."
           : "Could not access camera. Make sure no other app is using it.";
       setCameraError(msg);
     }
@@ -149,6 +162,7 @@ export default function SessionFlow({
     if (!streamRef.current || !cameraReady) return;
 
     chunksRef.current = [];
+    blobRef.current = null;
     const mimeType = getBestMimeType();
     const recorder = new MediaRecorder(streamRef.current, { mimeType });
 
@@ -158,8 +172,9 @@ export default function SessionFlow({
 
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+      blobRef.current = blob; // keep for Cloudinary upload
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
       stopStream();
       setStep("preview");
     };
@@ -188,23 +203,42 @@ export default function SessionFlow({
 
   // ── Re-record ─────────────────────────────────────────────────────────────
   function handleReRecord() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(null);
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
+    blobRef.current = null;
     setRecordingTime(0);
     setSubmitError(null);
     setStep("recorder");
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── Submit (video + emoji) ────────────────────────────────────────────────
   async function handleSubmit() {
-    setStep("submitting");
     setSubmitError(null);
+    setUploadProgress(0);
 
+    let videoUrl: string | null = null;
+
+    // 1. Upload to Cloudinary if we have a recording
+    if (blobRef.current) {
+      setStep("uploading");
+      try {
+        // Returns null when NEXT_PUBLIC_CLOUDINARY_* env vars aren't set yet
+        videoUrl = await uploadVideoToCloudinary(blobRef.current, setUploadProgress);
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error ? err.message : "Upload failed. Please try again."
+        );
+        setStep("preview");
+        return;
+      }
+    }
+
+    // 2. Save via our API — Deepgram transcript runs server-side
+    setStep("submitting");
     try {
       const res = await fetch("/api/session/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, emoji_type: selectedEmoji }),
+        body: JSON.stringify({ token, emoji_type: selectedEmoji, video_url: videoUrl }),
       });
 
       if (!res.ok) {
@@ -219,7 +253,7 @@ export default function SessionFlow({
     }
   }
 
-  // ── Submit with emoji only (no video) ────────────────────────────────────
+  // ── Submit (emoji only — skip video) ─────────────────────────────────────
   async function handleEmojiOnlySubmit() {
     setStep("submitting");
     setSubmitError(null);
@@ -247,7 +281,37 @@ export default function SessionFlow({
   // SCREENS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // ── Done / Already submitted ──────────────────────────────────────────────
+  // ── Uploading video ───────────────────────────────────────────────────────
+  if (step === "uploading") {
+    return (
+      <Card>
+        <div className="p-10 text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mx-auto">
+            <Upload size={28} className="text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Uploading your video
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              Keep this page open — almost there!
+            </p>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div
+              className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          <p className="text-sm font-semibold text-indigo-600">
+            {uploadProgress}%
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Done ──────────────────────────────────────────────────────────────────
   if (step === "done") {
     return (
       <Card>
@@ -271,13 +335,18 @@ export default function SessionFlow({
     );
   }
 
-  // ── Submitting ────────────────────────────────────────────────────────────
+  // ── Saving / processing ───────────────────────────────────────────────────
   if (step === "submitting") {
     return (
       <Card>
         <div className="p-10 text-center space-y-4">
           <Loader2 size={36} className="animate-spin text-indigo-600 mx-auto" />
-          <p className="text-gray-600 font-medium">Saving your feedback…</p>
+          <div>
+            <p className="text-gray-700 font-semibold">Saving your feedback…</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Generating transcript in the background
+            </p>
+          </div>
         </div>
       </Card>
     );
@@ -332,10 +401,9 @@ export default function SessionFlow({
 
           <button
             onClick={() => setStep("emoji")}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
           >
-            Get Started
-            <ChevronRight size={16} />
+            Get Started <ChevronRight size={16} />
           </button>
         </div>
       </Card>
@@ -388,7 +456,7 @@ export default function SessionFlow({
             <button
               onClick={() => setStep("recorder")}
               disabled={!selectedEmoji}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all touch-manipulation"
             >
               Continue to Video
               <ChevronRight size={16} />
@@ -438,7 +506,8 @@ export default function SessionFlow({
           )}
 
           {/* Camera area */}
-          <div className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-video">
+          {/* 4:3 on mobile (fullscreen-friendly portrait), 16:9 on desktop */}
+          <div className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-video">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               ref={videoRef}
@@ -472,11 +541,20 @@ export default function SessionFlow({
 
             {/* Recording indicator */}
             {isRecording && (
-              <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 rounded-full px-3 py-1">
+              <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 rounded-full px-3 py-1.5">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-white text-xs font-mono">
                   {formatTime(recordingTime)}
                 </span>
+              </div>
+            )}
+
+            {/* 30-second countdown warning */}
+            {isRecording && recordingTime >= 270 && (
+              <div className="absolute bottom-3 inset-x-3 bg-red-500/80 rounded-lg px-3 py-1.5 text-center">
+                <p className="text-white text-xs font-medium">
+                  {300 - recordingTime}s remaining
+                </p>
               </div>
             )}
           </div>
@@ -487,7 +565,7 @@ export default function SessionFlow({
               <button
                 onClick={startRecording}
                 disabled={!cameraReady || !!cameraError}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-3 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-4 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors touch-manipulation"
               >
                 <Video size={16} />
                 Start Recording
@@ -495,10 +573,10 @@ export default function SessionFlow({
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white hover:bg-red-500 transition-colors animate-pulse"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-500 transition-colors touch-manipulation"
               >
                 <StopCircle size={16} />
-                Stop Recording
+                Stop &amp; Preview
               </button>
             )}
           </div>
@@ -536,7 +614,7 @@ export default function SessionFlow({
           )}
 
           {/* Video preview */}
-          <div className="rounded-2xl overflow-hidden bg-gray-900 aspect-video">
+          <div className="rounded-2xl overflow-hidden bg-gray-900 aspect-4/3 sm:aspect-video">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               ref={previewVideoRef}
@@ -556,7 +634,7 @@ export default function SessionFlow({
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
             >
               <Send size={15} />
               Submit Feedback

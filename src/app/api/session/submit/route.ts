@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { transcribeVideoUrl } from "@/lib/deepgram";
 
 // POST /api/session/submit
-// Body: { token: string, emoji_type?: string }
+// Body: { token: string, emoji_type?: string, video_url?: string }
 // Uses service-role client — attendees are not Supabase auth users.
 export async function POST(request: NextRequest) {
-  let body: { token?: string; emoji_type?: string };
+  let body: { token?: string; emoji_type?: string; video_url?: string };
 
   try {
     body = await request.json();
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { token, emoji_type } = body;
+  const { token, emoji_type, video_url } = body;
 
   // Validate token format before hitting DB
   if (!token || !/^[a-f0-9]{64}$/.test(token)) {
@@ -23,6 +24,18 @@ export async function POST(request: NextRequest) {
   const VALID_EMOJIS = ["loved_it", "helpful", "needs_improvement", "confused"];
   if (emoji_type && !VALID_EMOJIS.includes(emoji_type)) {
     return NextResponse.json({ error: "Invalid emoji type" }, { status: 400 });
+  }
+
+  // Validate video_url if provided — must be an https URL (Cloudinary)
+  if (video_url !== undefined && video_url !== null) {
+    try {
+      const parsed = new URL(video_url);
+      if (parsed.protocol !== "https:") {
+        return NextResponse.json({ error: "Invalid video URL" }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Invalid video URL" }, { status: 400 });
+    }
   }
 
   const supabase = await createAdminClient();
@@ -61,9 +74,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Create a response row (video_url null for now — Cloudinary wired in next phase)
+  // Get transcript from Deepgram (server-side, non-blocking on failure)
+  let transcript: string | null = null;
+  if (video_url) {
+    transcript = await transcribeVideoUrl(video_url);
+  }
+
+  // Create a response row with video URL + transcript
   const { error: responseErr } = await supabase.from("responses").upsert(
-    { attendee_id, session_id, video_url: null, approved_for_wall: false },
+    { attendee_id, session_id, video_url: video_url ?? null, transcript, approved_for_wall: false },
     { onConflict: "attendee_id,session_id", ignoreDuplicates: false }
   );
   if (responseErr) {

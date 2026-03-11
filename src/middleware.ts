@@ -15,8 +15,8 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           // Write refreshed tokens back onto the request so subsequent
           // server-side reads within this request see the new values.
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value, options)
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
           );
           // Re-create supabaseResponse so it carries the new cookies.
           supabaseResponse = NextResponse.next({ request });
