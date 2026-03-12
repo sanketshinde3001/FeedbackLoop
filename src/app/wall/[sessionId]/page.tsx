@@ -60,6 +60,7 @@ export default async function WallPage({ params }: Props) {
   type ResponseRow = {
     id: string;
     attendee_id: string;
+    video_url: string | null;
     transcript: string | null;
     sentiment: string | null;
     attendees: { name: string } | null;
@@ -67,7 +68,7 @@ export default async function WallPage({ params }: Props) {
 
   const { data: rawResponses } = await supabase
     .from("responses")
-    .select("id, attendee_id, transcript, sentiment, attendees(name)")
+    .select("id, attendee_id, video_url, transcript, sentiment, attendees(name)")
     .eq("session_id", sessionId)
     .eq("approved_for_wall", true)
     .order("created_at", { ascending: false });
@@ -136,8 +137,23 @@ export default async function WallPage({ params }: Props) {
               return (
                 <div
                   key={r.id}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3"
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col"
                 >
+                  {/* Video player — shown first if available */}
+                  {r.video_url && (
+                    <div className="bg-gray-950 aspect-video">
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <video
+                        src={r.video_url}
+                        controls
+                        playsInline
+                        preload="none"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="p-5 flex flex-col gap-3 flex-1">
                   {/* Top row */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -166,7 +182,9 @@ export default async function WallPage({ params }: Props) {
                       &ldquo;{snippet}&rdquo;
                     </p>
                   ) : (
-                    <p className="text-sm text-gray-300 italic flex-1">No transcript available</p>
+                    !r.video_url && (
+                      <p className="text-sm text-gray-300 italic flex-1">No transcript available</p>
+                    )
                   )}
 
                   {/* Sentiment badge */}
@@ -181,6 +199,7 @@ export default async function WallPage({ params }: Props) {
                       </span>
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })}

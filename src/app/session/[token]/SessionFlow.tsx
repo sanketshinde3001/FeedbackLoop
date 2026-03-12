@@ -8,6 +8,7 @@ import {
   Send,
   CheckCircle2,
   Loader2,
+  Mic,
   MicOff,
   VideoOff,
   ChevronRight,
@@ -17,7 +18,7 @@ import {
 import { uploadVideoToCloudinary } from "@/lib/cloudinary";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Step = "welcome" | "emoji" | "recorder" | "preview" | "uploading" | "submitting" | "done";
+type Step = "welcome" | "intro" | "emoji" | "recorder" | "preview" | "uploading" | "submitting" | "done";
 
 interface EmojiOption {
   value: string;
@@ -86,6 +87,8 @@ export default function SessionFlow({
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [introText, setIntroText] = useState<string | null>(null);
+  const [introLoading, setIntroLoading] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
@@ -94,6 +97,7 @@ export default function SessionFlow({
   const chunksRef = useRef<Blob[]>([]);
   const blobRef = useRef<Blob | null>(null); // actual blob kept for Cloudinary upload
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cleanup on unmount — stop camera tracks and revoke blob URL
   useEffect(() => {
@@ -101,9 +105,41 @@ export default function SessionFlow({
       stopStream();
       if (timerRef.current) clearInterval(timerRef.current);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+      audioRef.current?.pause();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch AI greeting + TTS when entering intro step
+  useEffect(() => {
+    if (step !== "intro") return;
+    setIntroLoading(true);
+    setIntroText(null);
+    const controller = new AbortController();
+    fetch("/api/session/intro", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: attendeeName, sessionTitle, questions }),
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data: { text?: string; audioDataUrl?: string }) => {
+        setIntroText(data.text ?? null);
+        if (data.audioDataUrl) {
+          const audio = new Audio(data.audioDataUrl);
+          audioRef.current = audio;
+          audio.play().catch(() => {/* browser blocked autoplay — silent fallback */});
+        }
+      })
+      .catch(() => {/* network error — user can still proceed */})
+      .finally(() => setIntroLoading(false));
+    return () => {
+      controller.abort();
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   function stopStream() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -400,11 +436,76 @@ export default function SessionFlow({
           )}
 
           <button
-            onClick={() => setStep("emoji")}
+            onClick={() => setStep("intro")}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
           >
             Get Started <ChevronRight size={16} />
           </button>
+        </div>
+      </Card>
+    );
+  }
+
+  // ── Intro / AI Guide ──────────────────────────────────────────────────────
+  if (step === "intro") {
+    return (
+      <Card>
+        <div className="p-8 space-y-6">
+          {/* Guide header */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+              <Mic size={18} className="text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Session Guide</p>
+              <p className="text-xs text-gray-400">Personalised for you</p>
+            </div>
+          </div>
+
+          {/* Message bubble */}
+          <div className="min-h-22.5 flex items-start">
+            {introLoading ? (
+              <div className="flex items-center gap-2 text-gray-400 pt-2">
+                <Loader2 size={15} className="animate-spin" />
+                <span className="text-sm">One moment…</span>
+              </div>
+            ) : (
+              <div className="bg-indigo-50 rounded-2xl rounded-tl-sm px-5 py-4">
+                <p className="text-sm text-indigo-900 leading-relaxed">
+                  {introText ??
+                    `Hi ${attendeeName}! Ready to record your feedback for ${sessionTitle}? It only takes a couple of minutes.`}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Questions reference */}
+          {!introLoading && questions.length > 0 && (
+            <div className="border-l-2 border-indigo-100 pl-4 space-y-1.5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                We’ll cover
+              </p>
+              {questions.map((q, i) => (
+                <p key={i} className="text-sm text-gray-600">
+                  <span className="text-indigo-400 font-bold mr-1.5">{i + 1}.</span>
+                  {q}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* CTA */}
+          {!introLoading && (
+            <button
+              onClick={() => {
+                audioRef.current?.pause();
+                setStep("emoji");
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
+            >
+              I’m ready <ChevronRight size={16} />
+            </button>
+          )}
         </div>
       </Card>
     );
