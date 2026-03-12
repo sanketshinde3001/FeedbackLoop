@@ -5,13 +5,17 @@ import { createClient } from "@/lib/supabase/server";
 import { SessionControls } from "@/components/admin/SessionControls";
 import { CopyButton } from "@/components/admin/CopyButton";
 import { AddAttendeeForm, CSVUploadForm } from "@/components/admin/AttendeeForm";
+import { sendReminders } from "@/app/admin/sessions/actions";
 import {
   ArrowLeft,
+  Bell,
   CheckCircle2,
   Clock,
   Mail,
+  MessageSquare,
   Users,
 } from "lucide-react";
+import ResponsesPanel, { type ResponseWithAttendee } from "@/components/admin/ResponsesPanel";
 
 export const metadata: Metadata = { title: "Session Detail" };
 
@@ -31,18 +35,22 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
   const { error, success } = await searchParams;
   const supabase = await createClient();
 
-  // Fetch session + attendees in parallel
-  const [sessionRes, attendeesRes] = await Promise.all([
-    supabase
-      .from("sessions")
-      .select("*")
-      .eq("id", id)
-      .single(),
+  const [sessionRes, attendeesRes, responsesRes, reactionsRes] = await Promise.all([
+    supabase.from("sessions").select("*").eq("id", id).single(),
     supabase
       .from("attendees")
       .select("id, name, email, unique_token, submitted_at, reminded_at, created_at")
       .eq("session_id", id)
       .order("created_at", { ascending: true }),
+    supabase
+      .from("responses")
+      .select("id, attendee_id, video_url, transcript, sentiment, sentiment_score, ai_conclusion, approved_for_wall, created_at, attendees(name, email)")
+      .eq("session_id", id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("reactions")
+      .select("attendee_id, emoji_type")
+      .eq("session_id", id),
   ]);
 
   if (sessionRes.error || !sessionRes.data) notFound();
@@ -56,6 +64,38 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
     attendees.length > 0
       ? Math.round((submittedCount / attendees.length) * 100)
       : 0;
+
+  type RawResponse = {
+    id: string;
+    attendee_id: string;
+    video_url: string | null;
+    transcript: string | null;
+    sentiment: string | null;
+    sentiment_score: number | null;
+    ai_conclusion: string | null;
+    approved_for_wall: boolean;
+    created_at: string;
+    attendees: { name: string; email: string } | null;
+  };
+
+  const rawResponses = (responsesRes.data ?? []) as unknown as RawResponse[];
+  const reactionMap = new Map(
+    (reactionsRes.data ?? []).map((r) => [r.attendee_id, r.emoji_type as string])
+  );
+  const responsesList: ResponseWithAttendee[] = rawResponses.map((r) => ({
+    id: r.id,
+    attendee_id: r.attendee_id,
+    video_url: r.video_url,
+    transcript: r.transcript,
+    sentiment: r.sentiment as ResponseWithAttendee["sentiment"],
+    sentiment_score: r.sentiment_score,
+    ai_conclusion: r.ai_conclusion,
+    approved_for_wall: r.approved_for_wall,
+    created_at: r.created_at,
+    attendee_name: r.attendees?.name ?? "Unknown",
+    attendee_email: r.attendees?.email ?? "",
+    emoji_type: reactionMap.get(r.attendee_id) ?? null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -153,11 +193,22 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
 
       {/* Attendees */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
             <Users size={16} className="text-gray-400" />
             Attendees ({attendees.length})
           </h2>
+          {attendees.some((a) => !a.submitted_at) && (
+            <form action={sendReminders.bind(null, session.id)}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all touch-manipulation"
+              >
+                <Bell size={13} />
+                Send Reminders
+              </button>
+            </form>
+          )}
         </div>
 
         {/* Add attendee */}
@@ -221,6 +272,14 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
             <p className="text-sm text-gray-400">No attendees yet — add them above</p>
           </div>
         )}
+      </div>
+      {/* Responses */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+          <MessageSquare size={16} className="text-gray-400" />
+          Responses ({responsesList.length})
+        </h2>
+        <ResponsesPanel responses={responsesList} />
       </div>
     </div>
   );

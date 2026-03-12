@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sendFeedbackInvite, sendReminderEmail } from "@/lib/email";
 
 // ─── Create Session ──────────────────────────────────────────
 export async function createSession(formData: FormData) {
@@ -114,7 +115,6 @@ export async function addAttendee(sessionId: string, formData: FormData) {
 
   if (error) {
     if (error.code === "23505") {
-      // unique violation
       redirect(
         `/admin/sessions/${sessionId}?error=${encodeURIComponent("This email is already added to the session")}`
       );
@@ -122,8 +122,31 @@ export async function addAttendee(sessionId: string, formData: FormData) {
     redirect(`/admin/sessions/${sessionId}?error=${encodeURIComponent(error.message)}`);
   }
 
+  // Fetch the session title + new attendee token to send invite
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("title")
+    .eq("id", sessionId)
+    .single();
+
+  const { data: attendee } = await supabase
+    .from("attendees")
+    .select("unique_token")
+    .eq("session_id", sessionId)
+    .eq("email", email)
+    .single();
+
+  if (session && attendee) {
+    await sendFeedbackInvite({
+      to: email,
+      name,
+      sessionTitle: session.title,
+      token: attendee.unique_token,
+    }).catch(() => null);
+  }
+
   revalidatePath(`/admin/sessions/${sessionId}`);
-  redirect(`/admin/sessions/${sessionId}?tab=attendees`);
+  redirect(`/admin/sessions/${sessionId}?tab=attendees&success=Attendee+added+and+invite+sent`);
 }
 
 // ─── Bulk Add Attendees (CSV) ────────────────────────────────
@@ -166,8 +189,89 @@ export async function addAttendeesFromCSV(sessionId: string, formData: FormData)
 
   if (error) redirect(`/admin/sessions/${sessionId}?error=${encodeURIComponent(error.message)}`);
 
+  // Send invite emails to all newly inserted attendees
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("title")
+    .eq("id", sessionId)
+    .single();
+
+  if (session) {
+    const { data: inserted } = await supabase
+      .from("attendees")
+      .select("name, email, unique_token")
+      .eq("session_id", sessionId)
+      .in("email", inserts.map((r) => r.email));
+
+    if (inserted) {
+      await Promise.allSettled(
+        inserted.map((a) =>
+          sendFeedbackInvite({
+            to: a.email,
+            name: a.name,
+            sessionTitle: session.title,
+            token: a.unique_token,
+          })
+        )
+      );
+    }
+  }
+
   revalidatePath(`/admin/sessions/${sessionId}`);
-  redirect(`/admin/sessions/${sessionId}?tab=attendees&success=Attendees+imported`);
+  redirect(`/admin/sessions/${sessionId}?tab=attendees&success=Attendees+imported+and+invites+sent`);
+}
+
+// ─── Send Reminders ─────────────────────────────────────────
+export async function sendReminders(sessionId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/admin/login");
+
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("title, host_id")
+    .eq("id", sessionId)
+    .single();
+
+  if (!session || session.host_id !== user.id)
+    throw new Error("Session not found");
+
+  const { data: pending } = await supabase
+    .from("attendees")
+    .select("id, name, email, unique_token")
+    .eq("session_id", sessionId)
+    .is("submitted_at", null);
+
+  if (!pending || pending.length === 0)
+    redirect(`/admin/sessions/${sessionId}?tab=attendees&success=Everyone+has+already+submitted`);
+
+  const results = await Promise.allSettled(
+    pending.map((a) =>
+      sendReminderEmail({
+        to: a.email,
+        name: a.name,
+        sessionTitle: session.title,
+        token: a.unique_token,
+      })
+    )
+  );
+
+  const sent = results.filter((r) => r.status === "fulfilled").length;
+
+  // Mark reminded_at
+  await supabase
+    .from("attendees")
+    .update({ reminded_at: new Date().toISOString() })
+    .eq("session_id", sessionId)
+    .is("submitted_at", null);
+
+  revalidatePath(`/admin/sessions/${sessionId}`);
+  redirect(
+    `/admin/sessions/${sessionId}?tab=attendees&success=${encodeURIComponent(`Reminders sent to ${sent} of ${pending.length} attendees`)}`
+  );
 }
 
 // ─── Delete Session ──────────────────────────────────────────

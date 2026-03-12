@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { transcribeVideoUrl } from "@/lib/deepgram";
+import { analyzeTranscript } from "@/lib/gemini";
+import { sendThankYouEmail } from "@/lib/email";
+import type { EmojiType, SentimentType } from "@/lib/supabase/types";
 
 // POST /api/session/submit
 // Body: { token: string, emoji_type?: string, video_url?: string }
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const supabase = await createAdminClient();
+  const supabase = createAdminClient();
 
   // Resolve token → attendee (validates session is still active)
   const { data: rows, error: rpcError } = await supabase.rpc(
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
   // Save emoji reaction if provided
   if (emoji_type) {
     const { error: reactionErr } = await supabase.from("reactions").upsert(
-      { attendee_id, session_id, emoji_type },
+      { attendee_id, session_id, emoji_type: emoji_type as EmojiType },
       { onConflict: "attendee_id,session_id", ignoreDuplicates: false }
     );
     if (reactionErr) {
@@ -80,9 +83,31 @@ export async function POST(request: NextRequest) {
     transcript = await transcribeVideoUrl(video_url);
   }
 
-  // Create a response row with video URL + transcript
+  // Run Gemini sentiment on the transcript (non-blocking on failure)
+  let sentiment: SentimentType | null = null;
+  let sentiment_score: number | null = null;
+  let ai_conclusion: string | null = null;
+  if (transcript) {
+    const result = await analyzeTranscript(transcript);
+    if (result) {
+      sentiment = result.sentiment;
+      sentiment_score = result.score;
+      ai_conclusion = result.conclusion;
+    }
+  }
+
+  // Create a response row with video URL + transcript + sentiment
   const { error: responseErr } = await supabase.from("responses").upsert(
-    { attendee_id, session_id, video_url: video_url ?? null, transcript, approved_for_wall: false },
+    {
+      attendee_id,
+      session_id,
+      video_url: video_url ?? null,
+      transcript,
+      sentiment,
+      sentiment_score,
+      ai_conclusion,
+      approved_for_wall: false,
+    },
     { onConflict: "attendee_id,session_id", ignoreDuplicates: false }
   );
   if (responseErr) {
@@ -96,6 +121,23 @@ export async function POST(request: NextRequest) {
     .eq("id", attendee_id);
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  }
+
+  // Send thank-you email (fire-and-forget)
+  const { data: attendeeRow } = await supabase
+    .from("attendees")
+    .select("name, email")
+    .eq("id", attendee_id)
+    .single();
+
+  const sessionTitle = rows[0].session_title as string;
+
+  if (attendeeRow) {
+    sendThankYouEmail({
+      to: attendeeRow.email,
+      name: attendeeRow.name,
+      sessionTitle,
+    }).catch(() => null);
   }
 
   return NextResponse.json({ success: true });

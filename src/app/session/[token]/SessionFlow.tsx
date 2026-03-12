@@ -150,12 +150,12 @@ export default function SessionFlow({
     }
   }, [step, startCamera]);
 
-  // Set preview video src when previewUrl changes
+  // Force browser to load blob URL after preview mounts
   useEffect(() => {
-    if (previewVideoRef.current && previewUrl) {
-      previewVideoRef.current.src = previewUrl;
+    if (step === "preview" && previewVideoRef.current && previewUrl) {
+      previewVideoRef.current.load();
     }
-  }, [previewUrl]);
+  }, [step, previewUrl]);
 
   // ── Recording ─────────────────────────────────────────────────────────────
   function startRecording() {
@@ -613,13 +613,16 @@ export default function SessionFlow({
             </div>
           )}
 
-          {/* Video preview */}
+          {/* Video preview — key forces fresh element on new recording */}
           <div className="rounded-2xl overflow-hidden bg-gray-900 aspect-4/3 sm:aspect-video">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
+              key={previewUrl}
               ref={previewVideoRef}
+              src={previewUrl ? previewUrl + "#t=0.001" : undefined}
               controls
               playsInline
+              preload="auto"
               className="w-full h-full object-cover"
             />
           </div>

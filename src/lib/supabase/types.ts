@@ -91,6 +91,7 @@ export interface Database {
           transcript: string | null;
           sentiment: SentimentType | null;
           sentiment_score: number | null;
+          ai_conclusion: string | null;
           approved_for_wall: boolean;
           created_at: string;
         };
@@ -102,6 +103,7 @@ export interface Database {
           transcript?: string | null;
           sentiment?: SentimentType | null;
           sentiment_score?: number | null;
+          ai_conclusion?: string | null;
           approved_for_wall?: boolean;
           created_at?: string;
         };
@@ -113,6 +115,7 @@ export interface Database {
           transcript?: string | null;
           sentiment?: SentimentType | null;
           sentiment_score?: number | null;
+          ai_conclusion?: string | null;
           approved_for_wall?: boolean;
           created_at?: string;
         };

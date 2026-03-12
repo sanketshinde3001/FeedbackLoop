@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import type { Database } from "./types";
 
@@ -28,29 +29,11 @@ export async function createClient() {
   );
 }
 
-// Service role client — ONLY use in trusted server-side code (API routes, server actions)
-// Never expose this to the browser
-export async function createAdminClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient<Database>(
+// Service role client — bypasses RLS entirely.
+// Uses raw supabase-js (not @supabase/ssr) so cookie-based JWTs never override the service role key.
+export function createAdminClient() {
+  return createSupabaseClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // safe to ignore in Server Components
-          }
-        },
-      },
-    }
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 }
