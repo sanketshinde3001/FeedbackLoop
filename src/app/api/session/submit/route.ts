@@ -132,12 +132,20 @@ export async function POST(request: NextRequest) {
 
   const sessionTitle = rows[0].session_title as string;
 
-  if (attendeeRow) {
-    sendThankYouEmail({
+  if (attendeeRow?.email) {
+    const emailResult = await sendThankYouEmail({
       to: attendeeRow.email,
-      name: attendeeRow.name,
+      name: attendeeRow.name || "there",
       sessionTitle,
-    }).catch(() => null);
+    }).catch((err) => {
+      console.error("[submit] thank-you email failed for attendee", attendee_id, err);
+      return null;
+    });
+    if (!emailResult) {
+      console.warn("[submit] thank-you email may not have sent", { attendee_id, email: attendeeRow.email });
+    }
+  } else {
+    console.warn("[submit] no email found for attendee", attendee_id);
   }
 
   return NextResponse.json({ success: true });
