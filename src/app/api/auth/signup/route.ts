@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/auth/callback`,
+    },
+  });
 
   if (error) {
     const msg = encodeURIComponent(error.message);
