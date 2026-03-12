@@ -13,9 +13,11 @@ import {
   Clock,
   Mail,
   MessageSquare,
+  Sparkles,
   Users,
 } from "lucide-react";
 import ResponsesPanel, { type ResponseWithAttendee } from "@/components/admin/ResponsesPanel";
+import AISummaryPanel from "@/components/admin/AISummaryPanel";
 
 export const metadata: Metadata = { title: "Session Detail" };
 
@@ -273,6 +275,17 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           </div>
         )}
       </div>
+      {/* AI Summary */}
+      {responsesList.some((r) => r.transcript) && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+            <Sparkles size={16} className="text-indigo-400" />
+            AI Session Summary
+          </h2>
+          <AISummaryPanel sessionId={session.id} />
+        </div>
+      )}
+
       {/* Responses */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
         <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
