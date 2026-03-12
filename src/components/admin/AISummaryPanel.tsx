@@ -30,13 +30,13 @@ export default function AISummaryPanel({ sessionId }: { sessionId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-stone-500">
           Gemini reads all transcripts and writes a short executive summary.
         </p>
         <button
           onClick={generate}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all touch-manipulation"
+          className="inline-flex items-center gap-1.5 bg-orange-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-800 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all touch-manipulation"
         >
           {loading ? (
             <Loader2 size={13} className="animate-spin" />
@@ -48,15 +48,15 @@ export default function AISummaryPanel({ sessionId }: { sessionId: string }) {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700">
+        <div className="flex items-start gap-2 border-l-2 border-red-500 bg-red-50 px-3 py-2.5 text-sm text-red-700">
           <AlertCircle size={15} className="shrink-0 mt-0.5" />
           {error}
         </div>
       )}
 
       {summary && (
-        <div className="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3">
-          <p className="text-sm text-indigo-900 leading-relaxed">{summary}</p>
+        <div className="bg-stone-50 border border-stone-200 px-4 py-3">
+          <p className="text-sm text-stone-800 leading-relaxed">{summary}</p>
         </div>
       )}
     </div>

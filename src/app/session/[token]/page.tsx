@@ -13,11 +13,11 @@ const TOKEN_REGEX = /^[a-f0-9]{64}$/;
 
 function InfoScreen({ title, message }: { title: string; message: string }) {
   return (
-    <main className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-stone-100 flex items-center justify-center px-4">
       <div className="w-full max-w-sm text-center space-y-4">
         <div className="text-4xl">⏳</div>
-        <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-        <p className="text-sm text-gray-500">{message}</p>
+        <h1 className="text-xl font-bold text-stone-900">{title}</h1>
+        <p className="text-sm text-stone-500">{message}</p>
       </div>
     </main>
   );
@@ -38,7 +38,7 @@ export default async function SessionPage({ params }: Props) {
   if (!error && data && data.length > 0) {
     const session = data[0];
     return (
-      <main className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4 py-10">
+      <main className="min-h-screen bg-stone-100 flex items-center justify-center px-4 py-10">
         <SessionFlow
           token={token}
           attendeeId={session.attendee_id}

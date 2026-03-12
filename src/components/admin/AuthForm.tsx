@@ -1,6 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { DM_Serif_Display } from "next/font/google";
+
+const serif = DM_Serif_Display({
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  display: "swap",
+});
 
 interface Props {
   defaultMode: "login" | "signup";
@@ -12,52 +20,57 @@ export function AuthForm({ defaultMode, error, success }: Props) {
   const [mode, setMode] = useState<"login" | "signup">(defaultMode);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-      {/* Tab switcher */}
-      <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
-        <button
-          type="button"
-          onClick={() => setMode("login")}
-          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
-            mode === "login"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Sign in
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("signup")}
-          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
-            mode === "signup"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Sign up
-        </button>
+    <div className="space-y-8">
+      {/* Mode switcher — plain text underline style */}
+      <div className="flex gap-8">
+        {(["login", "signup"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={`text-sm font-medium pb-1 transition-colors ${
+              mode === m
+                ? "text-stone-900 border-b-2 border-orange-700"
+                : "text-stone-400 hover:text-stone-600 border-b-2 border-transparent"
+            }`}
+          >
+            {m === "login" ? "Sign in" : "Sign up"}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop heading — only inside the form area */}
+      <div className="hidden sm:block">
+        <h2 className={`${serif.className} text-3xl tracking-tight leading-tight`}>
+          {mode === "login" ? (
+            <>
+              Sign in to your<br />
+              <span className="italic">account.</span>
+            </>
+          ) : (
+            <>
+              Create your<br />
+              <span className="italic">account.</span>
+            </>
+          )}
+        </h2>
       </div>
 
       {/* Success banner */}
       {success && (
-        <div className="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        <div className="border-l-4 border-green-500 bg-green-50 px-4 py-3 text-sm text-green-800">
           {decodeURIComponent(success)}
         </div>
       )}
 
       {/* Error banner */}
       {error && (
-        <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-800">
           {decodeURIComponent(error)}
         </div>
       )}
 
-      {mode === "login" ? (
-        <LoginForm />
-      ) : (
-        <SignupForm />
-      )}
+      {mode === "login" ? <LoginForm /> : <SignupForm />}
     </div>
   );
 }
@@ -69,9 +82,9 @@ function LoginForm() {
       <Field id="password" label="Password" type="password" name="password" autoComplete="current-password" placeholder="••••••••" />
       <button
         type="submit"
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+        className="w-full bg-orange-700 text-white text-sm font-semibold px-4 py-3.5 hover:bg-orange-800 transition-colors"
       >
-        Sign in
+        Sign in →
       </button>
     </form>
   );
@@ -85,9 +98,9 @@ function SignupForm() {
       <Field id="su-confirm" label="Confirm password" type="password" name="confirm_password" autoComplete="new-password" placeholder="••••••••" />
       <button
         type="submit"
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+        className="w-full bg-orange-700 text-white text-sm font-semibold px-4 py-3.5 hover:bg-orange-800 transition-colors"
       >
-        Create account
+        Create account →
       </button>
     </form>
   );
@@ -112,7 +125,7 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+      <label htmlFor={id} className="block font-mono text-[10px] text-stone-500 uppercase tracking-[0.18em] mb-2">
         {label}
       </label>
       <input
@@ -122,9 +135,9 @@ function Field({
         autoComplete={autoComplete}
         required
         placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        className="w-full border border-stone-300 bg-stone-50 px-3.5 py-3 text-sm text-stone-900 placeholder-stone-300 focus:outline-none focus:border-stone-700 focus:bg-white transition-colors"
       />
-      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+      {hint && <p className="mt-1.5 font-mono text-[10px] text-stone-400 tracking-wide">{hint}</p>}
     </div>
   );
 }

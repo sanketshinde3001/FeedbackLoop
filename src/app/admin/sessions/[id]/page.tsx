@@ -27,9 +27,9 @@ interface Props {
 }
 
 const STATUS_PILL: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
+  draft:  "bg-stone-100 text-stone-600",
   active: "bg-green-100 text-green-700",
-  closed: "bg-red-100 text-red-600",
+  closed: "bg-red-100  text-red-600",
 };
 
 export default async function SessionDetailPage({ params, searchParams }: Props) {
@@ -104,33 +104,33 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       {/* Back */}
       <Link
         href="/admin/sessions"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-900 transition-colors"
       >
         <ArrowLeft size={15} />
         All Sessions
       </Link>
 
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white border border-stone-200 p-6 space-y-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-bold text-gray-900">{session.title}</h1>
+              <h1 className="text-2xl font-bold text-stone-900 tracking-tight">{session.title}</h1>
               <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
+                className={`px-2.5 py-0.5 text-xs font-medium capitalize ${
                   STATUS_PILL[session.status] ?? STATUS_PILL.draft
                 }`}
               >
                 {session.status}
               </span>
               {session.wall_enabled && (
-                <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700">
+                <span className="px-2.5 py-0.5 text-xs font-medium bg-stone-100 text-stone-600">
                   Wall on
                 </span>
               )}
             </div>
             {session.session_date && (
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-stone-400 mt-1">
                 {new Date(session.session_date).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
@@ -141,18 +141,18 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           </div>
 
           {/* Stats */}
-          <div className="flex gap-5 text-center shrink-0">
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{attendees.length}</p>
-              <p className="text-xs text-gray-400">Attendees</p>
+          <div className="flex gap-px bg-stone-200 border border-stone-200 shrink-0">
+            <div className="bg-white px-5 py-3 text-center">
+              <p className="text-2xl font-bold text-stone-900">{attendees.length}</p>
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Attendees</p>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{submittedCount}</p>
-              <p className="text-xs text-gray-400">Submitted</p>
+            <div className="bg-white px-5 py-3 text-center">
+              <p className="text-2xl font-bold text-stone-900">{submittedCount}</p>
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Submitted</p>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-indigo-600">{responseRate}%</p>
-              <p className="text-xs text-gray-400">Response rate</p>
+            <div className="bg-white px-5 py-3 text-center">
+              <p className="text-2xl font-bold text-orange-700">{responseRate}%</p>
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Rate</p>
             </div>
           </div>
         </div>
@@ -167,44 +167,44 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
 
       {/* Alerts */}
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+        <div className="border-l-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
           {decodeURIComponent(error)}
         </div>
       )}
       {success && (
-        <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        <div className="border-l-2 border-green-500 bg-green-50 px-4 py-3 text-sm text-green-700">
           {decodeURIComponent(success)}
         </div>
       )}
 
       {/* Questions */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Questions</h2>
+      <div className="bg-white border border-stone-200 p-6">
+        <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-3">Questions</h2>
         {session.questions.length > 0 ? (
           <ol className="space-y-2 list-decimal list-inside">
             {session.questions.map((q: string, i: number) => (
-              <li key={i} className="text-sm text-gray-700">
+              <li key={i} className="text-sm text-stone-700">
                 {q}
               </li>
             ))}
           </ol>
         ) : (
-          <p className="text-sm text-gray-400">No questions added</p>
+          <p className="text-sm text-stone-400">No questions added</p>
         )}
       </div>
 
       {/* Attendees */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+      <div className="bg-white border border-stone-200 p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <Users size={16} className="text-gray-400" />
+          <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] flex items-center gap-2">
+            <Users size={12} />
             Attendees ({attendees.length})
           </h2>
           {attendees.some((a) => !a.submitted_at) && (
             <form action={sendReminders.bind(null, session.id)}>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 active:scale-[0.98] transition-all touch-manipulation"
+                className="inline-flex items-center gap-1.5 border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 hover:border-stone-300 active:scale-[0.98] transition-all touch-manipulation"
               >
                 <Bell size={13} />
                 Send Reminders
@@ -214,8 +214,8 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
         </div>
 
         {/* Add attendee */}
-        <div className="space-y-3 border-b border-gray-100 pb-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+        <div className="space-y-3 border-b border-stone-100 pb-5">
+          <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
             Add manually
           </p>
           <AddAttendeeForm sessionId={session.id} />
@@ -224,9 +224,9 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
 
         {/* Attendee list */}
         {attendees.length > 0 ? (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-stone-50">
             {/* Table header */}
-            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 pb-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 pb-2 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
               <span>Name</span>
               <span>Email</span>
               <span>Status</span>
@@ -240,11 +240,11 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
                   key={a.id}
                   className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center py-3"
                 >
-                  <span className="text-sm font-medium text-gray-800 truncate">
+                  <span className="text-sm font-medium text-stone-800 truncate">
                     {a.name}
                   </span>
-                  <span className="text-sm text-gray-500 truncate flex items-center gap-1">
-                    <Mail size={13} className="shrink-0 text-gray-300" />
+                  <span className="text-sm text-stone-500 truncate flex items-center gap-1">
+                    <Mail size={13} className="shrink-0 text-stone-300" />
                     {a.email}
                   </span>
                   <span>
@@ -253,13 +253,13 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
                         <CheckCircle2 size={13} /> Done
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <span className="flex items-center gap-1 text-xs text-stone-400">
                         <Clock size={13} /> Pending
                       </span>
                     )}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="text-xs text-gray-300 truncate max-w-24 hidden lg:block">
+                    <span className="text-xs text-stone-300 truncate max-w-24 hidden lg:block">
                       …{a.unique_token.slice(-8)}
                     </span>
                     <CopyButton text={link} />
@@ -270,16 +270,16 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           </div>
         ) : (
           <div className="text-center py-8">
-            <Users size={36} className="mx-auto text-gray-200 mb-2" />
-            <p className="text-sm text-gray-400">No attendees yet — add them above</p>
+            <Users size={36} className="mx-auto text-stone-200 mb-2" />
+            <p className="text-sm text-stone-400">No attendees yet — add them above</p>
           </div>
         )}
       </div>
       {/* AI Summary */}
       {responsesList.some((r) => r.transcript) && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-            <Sparkles size={16} className="text-indigo-400" />
+        <div className="bg-white border border-stone-200 p-6 space-y-4">
+          <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] flex items-center gap-2">
+            <Sparkles size={12} className="text-orange-500" />
             AI Session Summary
           </h2>
           <AISummaryPanel sessionId={session.id} />
@@ -287,9 +287,9 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       )}
 
       {/* Responses */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <MessageSquare size={16} className="text-gray-400" />
+      <div className="bg-white border border-stone-200 p-6 space-y-4">
+        <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] flex items-center gap-2">
+          <MessageSquare size={12} />
           Responses ({responsesList.length})
         </h2>
         <ResponsesPanel responses={responsesList} />

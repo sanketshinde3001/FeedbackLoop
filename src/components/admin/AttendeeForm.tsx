@@ -27,19 +27,19 @@ export function AddAttendeeForm({ sessionId }: Props) {
         type="text"
         required
         placeholder="Full name"
-        className="flex-1 min-w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="flex-1 min-w-32 border border-stone-300 bg-stone-50 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
       />
       <input
         name="email"
         type="email"
         required
         placeholder="email@example.com"
-        className="flex-1 min-w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="flex-1 min-w-48 border border-stone-300 bg-stone-50 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
       />
       <button
         type="submit"
         disabled={isPending}
-        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 transition-colors shrink-0"
+        className="inline-flex items-center gap-2 bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-60 transition-colors shrink-0"
       >
         {isPending ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
         Add
@@ -76,7 +76,7 @@ export function CSVUploadForm({ sessionId }: Props) {
     return (
       <button
         onClick={() => setShow(true)}
-        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-indigo-600 font-medium transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-stone-500 hover:text-orange-700 font-medium transition-colors"
       >
         <Upload size={14} />
         Bulk import CSV
@@ -85,9 +85,9 @@ export function CSVUploadForm({ sessionId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 bg-gray-50 rounded-xl p-4 border border-gray-200">
-      <p className="text-xs text-gray-500 font-medium">
-        CSV format: <code className="bg-gray-100 px-1 rounded">Full Name, email@example.com</code> — one per line
+    <form onSubmit={handleSubmit} className="space-y-3 bg-stone-50 p-4 border border-stone-200">
+      <p className="text-xs text-stone-500 font-medium">
+        CSV format: <code className="bg-stone-100 px-1">Full Name, email@example.com</code> — one per line
       </p>
 
       {/* File upload */}
@@ -95,24 +95,24 @@ export function CSVUploadForm({ sessionId }: Props) {
         name="file"
         type="file"
         accept=".csv,text/csv"
-        className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-indigo-50 file:text-indigo-700 file:text-sm file:font-medium cursor-pointer"
+        className="block w-full text-sm text-stone-500 file:mr-3 file:py-1.5 file:px-3 file:border-0 file:bg-stone-200 file:text-stone-700 file:text-sm file:font-medium cursor-pointer"
       />
 
-      <p className="text-xs text-gray-400 text-center">— or paste directly —</p>
+      <p className="text-xs text-stone-400 text-center">— or paste directly —</p>
 
       {/* Paste area */}
       <textarea
         name="csv"
         rows={4}
         placeholder={"Alice Smith, alice@example.com\nBob Jones, bob@example.com"}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+        className="w-full border border-stone-300 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-stone-400 resize-none"
       />
 
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 transition-colors"
+          className="inline-flex items-center gap-2 bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-60 transition-colors"
         >
           {isPending && <Loader2 size={14} className="animate-spin" />}
           Import
@@ -120,7 +120,7 @@ export function CSVUploadForm({ sessionId }: Props) {
         <button
           type="button"
           onClick={() => setShow(false)}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
         >
           Cancel
         </button>

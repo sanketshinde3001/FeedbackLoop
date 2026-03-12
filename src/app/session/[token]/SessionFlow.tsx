@@ -64,7 +64,7 @@ function getBestMimeType(): string {
 // ─── Wrapper card ─────────────────────────────────────────────────────────────
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+    <div className="w-full max-w-lg bg-white border border-stone-200 overflow-hidden">
       {children}
     </div>
   );
@@ -322,24 +322,24 @@ export default function SessionFlow({
     return (
       <Card>
         <div className="p-10 text-center space-y-6">
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mx-auto">
-            <Upload size={28} className="text-indigo-600" />
+          <div className="w-16 h-16 bg-stone-100 flex items-center justify-center mx-auto">
+            <Upload size={28} className="text-stone-600" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-stone-900">
               Uploading your video
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-stone-400 mt-1">
               Keep this page open — almost there!
             </p>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-stone-100 h-2 overflow-hidden">
             <div
-              className="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+              className="bg-orange-700 h-2 transition-all duration-300 ease-out"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
-          <p className="text-sm font-semibold text-indigo-600">
+          <p className="text-sm font-semibold text-orange-700">
             {uploadProgress}%
           </p>
         </div>
@@ -355,8 +355,8 @@ export default function SessionFlow({
           <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
             <CheckCircle2 size={32} className="text-green-500" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">Thank you{alreadySubmitted ? "" : `, ${attendeeName}`}!</h2>
-          <p className="text-gray-500">
+          <h2 className="text-2xl font-bold text-stone-900">Thank you{alreadySubmitted ? "" : `, ${attendeeName}`}!</h2>
+          <p className="text-stone-500">
             {alreadySubmitted
               ? "You've already submitted your feedback for this session."
               : "Your feedback has been recorded. We really appreciate you taking the time!"}
@@ -376,10 +376,10 @@ export default function SessionFlow({
     return (
       <Card>
         <div className="p-10 text-center space-y-4">
-          <Loader2 size={36} className="animate-spin text-indigo-600 mx-auto" />
+          <Loader2 size={36} className="animate-spin text-orange-700 mx-auto" />
           <div>
-            <p className="text-gray-700 font-semibold">Saving your feedback…</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-stone-700 font-semibold">Saving your feedback…</p>
+            <p className="text-sm text-stone-400 mt-1">
               Generating transcript in the background
             </p>
           </div>
@@ -392,20 +392,20 @@ export default function SessionFlow({
   if (step === "welcome") {
     return (
       <Card>
-        <div className="bg-indigo-600 px-8 py-6">
-          <p className="text-indigo-200 text-sm font-medium">Feedback for</p>
-          <h1 className="text-white text-xl font-bold mt-1 leading-tight">
+        <div className="bg-stone-900 px-8 py-6">
+          <p className="text-stone-400 text-xs font-mono uppercase tracking-[0.18em]">Feedback for</p>
+          <h1 className="text-white text-xl font-bold mt-1.5 leading-tight">
             {sessionTitle}
           </h1>
         </div>
 
         <div className="p-8 space-y-6">
           <div>
-            <p className="text-gray-500 text-sm">Hi there,</p>
-            <h2 className="text-2xl font-bold text-gray-900 mt-1">
+            <p className="text-stone-400 text-sm">Hi there,</p>
+            <h2 className="text-2xl font-bold text-stone-900 mt-1">
               Welcome, {attendeeName} 👋
             </h2>
-            <p className="text-gray-500 mt-2 text-sm leading-relaxed">
+            <p className="text-stone-500 mt-2 text-sm leading-relaxed">
               We'd love to hear your thoughts. You'll first pick an emoji
               reaction, then record a short video — it only takes a minute.
             </p>
@@ -413,21 +413,21 @@ export default function SessionFlow({
 
           {/* Questions preview */}
           {questions.length > 0 && (
-            <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                We'll ask you about…
+            <div className="bg-stone-50 border border-stone-100 p-4 space-y-2">
+              <p className="text-xs font-mono text-stone-400 uppercase tracking-[0.18em]">
+                We’ll ask you about…
               </p>
               <ul className="space-y-1">
                 {questions.slice(0, 3).map((q, i) => (
-                  <li key={i} className="text-sm text-gray-700 flex gap-2">
-                    <span className="text-indigo-400 font-bold shrink-0">
+                  <li key={i} className="text-sm text-stone-700 flex gap-2">
+                    <span className="text-orange-600 font-bold shrink-0">
                       {i + 1}.
                     </span>
                     {q}
                   </li>
                 ))}
                 {questions.length > 3 && (
-                  <li className="text-xs text-gray-400">
+                  <li className="text-xs text-stone-400">
                     + {questions.length - 3} more…
                   </li>
                 )}
@@ -437,7 +437,7 @@ export default function SessionFlow({
 
           <button
             onClick={() => setStep("intro")}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
+            className="w-full flex items-center justify-center gap-2 bg-orange-700 px-6 py-4 text-sm font-semibold text-white hover:bg-orange-800 active:scale-[0.98] transition-all touch-manipulation"
           >
             Get Started <ChevronRight size={16} />
           </button>
@@ -453,25 +453,25 @@ export default function SessionFlow({
         <div className="p-8 space-y-6">
           {/* Guide header */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-              <Mic size={18} className="text-indigo-600" />
+            <div className="w-10 h-10 bg-stone-100 flex items-center justify-center shrink-0">
+              <Mic size={18} className="text-stone-600" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-900">Session Guide</p>
-              <p className="text-xs text-gray-400">Personalised for you</p>
+              <p className="text-sm font-semibold text-stone-900">Session Guide</p>
+              <p className="text-xs text-stone-400">Personalised for you</p>
             </div>
           </div>
 
           {/* Message bubble */}
           <div className="min-h-22.5 flex items-start">
             {introLoading ? (
-              <div className="flex items-center gap-2 text-gray-400 pt-2">
+              <div className="flex items-center gap-2 text-stone-400 pt-2">
                 <Loader2 size={15} className="animate-spin" />
                 <span className="text-sm">One moment…</span>
               </div>
             ) : (
-              <div className="bg-indigo-50 rounded-2xl rounded-tl-sm px-5 py-4">
-                <p className="text-sm text-indigo-900 leading-relaxed">
+              <div className="bg-stone-50 border border-stone-100 px-5 py-4">
+                <p className="text-sm text-stone-800 leading-relaxed">
                   {introText ??
                     `Hi ${attendeeName}! Ready to record your feedback for ${sessionTitle}? It only takes a couple of minutes.`}
                 </p>
@@ -481,13 +481,13 @@ export default function SessionFlow({
 
           {/* Questions reference */}
           {!introLoading && questions.length > 0 && (
-            <div className="border-l-2 border-indigo-100 pl-4 space-y-1.5">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            <div className="border-l-2 border-orange-300 pl-4 space-y-1.5">
+              <p className="text-xs font-mono text-stone-400 uppercase tracking-[0.18em] mb-2">
                 We’ll cover
               </p>
               {questions.map((q, i) => (
-                <p key={i} className="text-sm text-gray-600">
-                  <span className="text-indigo-400 font-bold mr-1.5">{i + 1}.</span>
+                <p key={i} className="text-sm text-stone-600">
+                  <span className="text-orange-600 font-bold mr-1.5">{i + 1}.</span>
                   {q}
                 </p>
               ))}
@@ -501,7 +501,7 @@ export default function SessionFlow({
                 audioRef.current?.pause();
                 setStep("emoji");
               }}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
+              className="w-full flex items-center justify-center gap-2 bg-orange-700 px-6 py-4 text-sm font-semibold text-white hover:bg-orange-800 active:scale-[0.98] transition-all touch-manipulation"
             >
               I’m ready <ChevronRight size={16} />
             </button>
@@ -517,19 +517,19 @@ export default function SessionFlow({
       <Card>
         <div className="p-8 space-y-6">
           <div>
-            <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
+            <p className="text-xs font-mono text-orange-700 uppercase tracking-[0.18em]">
               Step 1 of 2
             </p>
-            <h2 className="text-xl font-bold text-gray-900 mt-1">
+            <h2 className="text-xl font-bold text-stone-900 mt-1">
               How was the session?
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-stone-500 mt-1">
               Pick the one that best describes your experience.
             </p>
           </div>
 
           {submitError && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="border-l-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
               {submitError}
             </div>
           )}
@@ -539,14 +539,14 @@ export default function SessionFlow({
               <button
                 key={opt.value}
                 onClick={() => setSelectedEmoji(opt.value)}
-                className={`flex flex-col items-center gap-2 rounded-2xl border-2 p-5 transition-all ${
+                className={`flex flex-col items-center gap-2 border-2 p-5 transition-all ${
                   selectedEmoji === opt.value
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    ? "border-orange-700 bg-orange-50"
+                    : "border-stone-200 hover:border-stone-300 hover:bg-stone-50"
                 }`}
               >
                 <span className="text-4xl">{opt.emoji}</span>
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-stone-700">
                   {opt.label}
                 </span>
               </button>
@@ -557,7 +557,7 @@ export default function SessionFlow({
             <button
               onClick={() => setStep("recorder")}
               disabled={!selectedEmoji}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-4 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all touch-manipulation"
+              className="w-full flex items-center justify-center gap-2 bg-orange-700 px-6 py-4 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all touch-manipulation"
             >
               Continue to Video
               <ChevronRight size={16} />
@@ -566,7 +566,7 @@ export default function SessionFlow({
             {selectedEmoji && (
               <button
                 onClick={handleEmojiOnlySubmit}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-6 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 border border-stone-200 px-6 py-3 text-sm font-medium text-stone-500 hover:bg-stone-50 transition-colors"
               >
                 <SkipForward size={15} />
                 Submit emoji only (skip video)
@@ -584,23 +584,23 @@ export default function SessionFlow({
       <Card>
         <div className="p-6 space-y-4">
           <div>
-            <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">
+            <p className="text-xs font-mono text-orange-700 uppercase tracking-[0.18em]">
               Step 2 of 2
             </p>
-            <h2 className="text-xl font-bold text-gray-900 mt-1">
+            <h2 className="text-xl font-bold text-stone-900 mt-1">
               Record your feedback
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-stone-500 mt-1">
               Max 5 minutes. Answer as many questions as you like.
             </p>
           </div>
 
           {/* Questions reference */}
           {questions.length > 0 && (
-            <div className="bg-indigo-50 rounded-xl px-4 py-3 space-y-1">
+            <div className="bg-stone-50 border border-stone-100 px-4 py-3 space-y-1">
               {questions.map((q, i) => (
-                <p key={i} className="text-xs text-indigo-700">
-                  <span className="font-bold">{i + 1}.</span> {q}
+                <p key={i} className="text-xs text-stone-600">
+                  <span className="font-bold text-orange-600">{i + 1}.</span> {q}
                 </p>
               ))}
             </div>
@@ -608,7 +608,7 @@ export default function SessionFlow({
 
           {/* Camera area */}
           {/* 4:3 on mobile (fullscreen-friendly portrait), 16:9 on desktop */}
-          <div className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-video">
+          <div className="relative bg-stone-900 overflow-hidden aspect-4/3 sm:aspect-video">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               ref={videoRef}
@@ -666,7 +666,7 @@ export default function SessionFlow({
               <button
                 onClick={startRecording}
                 disabled={!cameraReady || !!cameraError}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-4 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors touch-manipulation"
+              className="flex-1 flex items-center justify-center gap-2 bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors touch-manipulation"
               >
                 <Video size={16} />
                 Start Recording
@@ -674,7 +674,7 @@ export default function SessionFlow({
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-500 transition-colors touch-manipulation"
+                className="flex-1 flex items-center justify-center gap-2 bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-700 transition-colors touch-manipulation"
               >
                 <StopCircle size={16} />
                 Stop &amp; Preview
@@ -684,7 +684,7 @@ export default function SessionFlow({
 
           {/* Permission note */}
           {!cameraReady && !cameraError && (
-            <p className="text-xs text-gray-400 text-center flex items-center justify-center gap-1">
+            <p className="text-xs text-stone-400 text-center flex items-center justify-center gap-1">
               <MicOff size={12} />
               Allow camera & microphone when your browser asks
             </p>
@@ -700,22 +700,22 @@ export default function SessionFlow({
       <Card>
         <div className="p-6 space-y-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-stone-900">
               Preview your recording
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-stone-500 mt-1">
               Happy with it? Submit, or re-record if you want another take.
             </p>
           </div>
 
           {submitError && (
-            <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <div className="border-l-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-700">
               {submitError}
             </div>
           )}
 
           {/* Video preview — key forces fresh element on new recording */}
-          <div className="rounded-2xl overflow-hidden bg-gray-900 aspect-4/3 sm:aspect-video">
+          <div className="overflow-hidden bg-stone-900 aspect-4/3 sm:aspect-video">
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               key={previewUrl}
@@ -731,14 +731,14 @@ export default function SessionFlow({
           <div className="flex gap-3">
             <button
               onClick={handleReRecord}
-              className="flex items-center gap-2 rounded-xl border border-gray-200 px-5 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 border border-stone-200 px-5 py-3 text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors"
             >
               <RefreshCw size={15} />
               Re-record
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-[0.98] transition-all touch-manipulation"
+              className="flex-1 flex items-center justify-center gap-2 bg-orange-700 px-6 py-3.5 text-sm font-semibold text-white hover:bg-orange-800 active:scale-[0.98] transition-all touch-manipulation"
             >
               <Send size={15} />
               Submit Feedback

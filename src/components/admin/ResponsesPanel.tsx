@@ -32,7 +32,7 @@ export type ResponseWithAttendee = {
 
 const SENTIMENT_CONFIG = {
   positive: { classes: "bg-green-50 text-green-700 border-green-200", Icon: ThumbsUp },
-  neutral:  { classes: "bg-gray-50 text-gray-600 border-gray-200",   Icon: Minus    },
+  neutral:  { classes: "bg-stone-50 text-stone-600 border-stone-200", Icon: Minus    },
   negative: { classes: "bg-red-50 text-red-700 border-red-200",       Icon: ThumbsDown },
 } as const;
 
@@ -98,8 +98,8 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
   if (responses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
-        <MessageSquare size={36} className="text-gray-200" />
-        <p className="text-sm text-gray-400">No responses submitted yet</p>
+        <MessageSquare size={36} className="text-stone-200" />
+        <p className="text-sm text-stone-400">No responses submitted yet</p>
       </div>
     );
   }
@@ -115,7 +115,7 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
         const canAnalyze = !!(r.video_url || r.transcript);
 
         return (
-          <div key={r.id} className="border border-gray-100 rounded-2xl overflow-hidden hover:border-gray-200 transition-colors">
+          <div key={r.id} className="border border-stone-200 overflow-hidden hover:border-stone-300 transition-colors">
 
             {/* Inline video player */}
             {r.video_url && videoShown && (
@@ -136,18 +136,18 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
               {/* Header */}
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{r.attendee_name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{r.attendee_email}</p>
+                  <p className="text-sm font-semibold text-stone-900 truncate">{r.attendee_name}</p>
+                  <p className="text-xs text-stone-400 mt-0.5 truncate">{r.attendee_email}</p>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
                   {r.emoji_type && (
-                    <span className="text-xs text-gray-500 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    <span className="text-xs text-stone-500 bg-stone-50 border border-stone-200 px-2 py-0.5 whitespace-nowrap">
                       {EMOJI_MAP[r.emoji_type] ?? r.emoji_type}
                     </span>
                   )}
                   {sentCfg ? (
-                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full border whitespace-nowrap ${sentCfg.classes}`}>
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 border whitespace-nowrap ${sentCfg.classes}`}>
                       <sentCfg.Icon size={11} />
                       <span className="capitalize">{r.sentiment}</span>
                       {r.sentiment_score !== null && (
@@ -164,14 +164,14 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
 
               {/* AI Conclusion */}
               {r.ai_conclusion && (
-                <p className="text-sm text-indigo-900 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 leading-relaxed">
+                <p className="text-sm text-stone-800 bg-stone-50 border border-stone-200 px-3 py-2.5 leading-relaxed">
                   {r.ai_conclusion}
                 </p>
               )}
 
               {/* Error */}
               {errors[r.id] && (
-                <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                <p className="text-xs text-red-600 bg-red-50 border-l-2 border-red-500 px-3 py-2">
                   {errors[r.id]}
                 </p>
               )}
@@ -181,13 +181,13 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                 <div>
                   <button
                     onClick={() => setExpanded((s) => toggle(s, r.id))}
-                    className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors touch-manipulation"
+                    className="flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-700 transition-colors touch-manipulation"
                   >
                     {transcriptOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     {transcriptOpen ? "Hide transcript" : "Show transcript"}
                   </button>
                   {transcriptOpen && (
-                    <div className="mt-2 text-sm text-gray-600 leading-relaxed bg-gray-50 border border-gray-100 rounded-xl p-3 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                    <div className="mt-2 text-sm text-stone-600 leading-relaxed bg-stone-50 border border-stone-200 p-3 max-h-48 overflow-y-auto whitespace-pre-wrap">
                       {r.transcript}
                     </div>
                   )}
@@ -199,7 +199,7 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                 {r.video_url && (
                   <button
                     onClick={() => setVideoOpen((s) => toggle(s, r.id))}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 px-3 py-1.5 rounded-lg transition-colors touch-manipulation"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 hover:border-stone-300 px-3 py-1.5 transition-colors touch-manipulation"
                   >
                     {videoShown ? <Pause size={11} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
                     {videoShown ? "Hide video" : "Watch video"}
@@ -210,7 +210,7 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                   <button
                     onClick={() => handleReanalyze(r.id)}
                     disabled={analyzing}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                   >
                     <RefreshCw size={11} className={analyzing ? "animate-spin" : ""} />
                     {analyzing ? "Analyzing…" : r.sentiment ? "Re-analyze" : "Analyze now"}
@@ -220,7 +220,7 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                 <button
                   onClick={() => handleApprove(r.id, r.approved_for_wall)}
                   disabled={approvePending}
-                  className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 touch-manipulation ${
+                  className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border transition-colors disabled:opacity-50 touch-manipulation ${
                     r.approved_for_wall
                       ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                       : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"

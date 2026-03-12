@@ -17,9 +17,9 @@ const STATUS_FLOW: Record<string, { label: string; next: "draft" | "active" | "c
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-indigo-600 hover:bg-indigo-500",
-  active: "bg-red-600 hover:bg-red-500",
-  closed: "bg-gray-600 hover:bg-gray-500",
+  draft:  "bg-orange-700 hover:bg-orange-800",
+  active: "bg-red-600 hover:bg-red-700",
+  closed: "bg-stone-700 hover:bg-stone-800",
 };
 
 export function SessionControls({ sessionId, currentStatus, wallEnabled }: Props) {
@@ -45,7 +45,7 @@ export function SessionControls({ sessionId, currentStatus, wallEnabled }: Props
       <button
         onClick={handleStatusChange}
         disabled={isPending}
-        className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors ${STATUS_STYLES[currentStatus]}`}
+        className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors ${STATUS_STYLES[currentStatus]}`}
       >
         {isPending && <Loader2 size={14} className="animate-spin" />}
         {flow.label}
@@ -55,7 +55,7 @@ export function SessionControls({ sessionId, currentStatus, wallEnabled }: Props
       <button
         onClick={handleWallToggle}
         disabled={isPending}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 transition-colors"
+        className="inline-flex items-center gap-2 border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60 transition-colors"
       >
         {wallEnabled ? "Disable Wall" : "Enable Wall"}
       </button>
@@ -64,7 +64,7 @@ export function SessionControls({ sessionId, currentStatus, wallEnabled }: Props
       <button
         onClick={handleDelete}
         disabled={isPending}
-        className="ml-auto inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 transition-colors"
+        className="ml-auto inline-flex items-center gap-2 border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 transition-colors"
       >
         Delete Session
       </button>
