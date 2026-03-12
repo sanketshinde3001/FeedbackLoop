@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import NewSessionForm from "@/components/admin/NewSessionForm";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "New Session" };
 
@@ -8,6 +10,11 @@ interface Props {
 }
 
 export default async function NewSessionPage({ searchParams }: Props) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) notFound();
+
   const { error } = await searchParams;
 
   return (

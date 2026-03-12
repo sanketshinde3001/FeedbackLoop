@@ -1,10 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createRouteHandlerClient } from "@/lib/supabase/server";
 
 // POST /api/auth/signup
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
-  const supabase = await createClient();
 
   const email = (formData.get("email") as string | null)?.trim();
   const password = formData.get("password") as string | null;
@@ -31,6 +30,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const redirectResponse = NextResponse.redirect(new URL("/admin", request.url), {
+    status: 303,
+  });
+  const supabase = createRouteHandlerClient(request, redirectResponse);
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
 
   // If Supabase auto-confirmed the user (email confirmation disabled), session exists
   if (data.session) {
-    return NextResponse.redirect(new URL("/admin", request.url), { status: 303 });
+    return redirectResponse;
   }
 
   // Email confirmation required — tell the user to check their inbox

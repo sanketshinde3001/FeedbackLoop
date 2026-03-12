@@ -1,11 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createRouteHandlerClient } from "@/lib/supabase/server";
 
 // POST /api/auth/login
 // Handles login form submission (no JS required)
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
-  const supabase = await createClient();
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -17,6 +16,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const redirectResponse = NextResponse.redirect(new URL("/admin", request.url), {
+    status: 303,
+  });
+  const supabase = createRouteHandlerClient(request, redirectResponse);
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -26,5 +30,5 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(new URL("/admin", request.url), { status: 303 });
+  return redirectResponse;
 }

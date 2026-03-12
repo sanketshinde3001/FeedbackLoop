@@ -37,6 +37,13 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
   const { error, success } = await searchParams;
   const supabase = await createClient();
 
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) notFound();
+
   const [sessionRes, attendeesRes, responsesRes, reactionsRes] = await Promise.all([
     supabase.from("sessions").select("*").eq("id", id).single(),
     supabase
@@ -58,6 +65,9 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
   if (sessionRes.error || !sessionRes.data) notFound();
 
   const session = sessionRes.data;
+
+  // Verify ownership — only the session host can view it
+  if (session.host_id !== user.id) notFound();
   const attendees = attendeesRes.data ?? [];
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -111,11 +121,11 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       </Link>
 
       {/* Header */}
-      <div className="bg-white border border-stone-200 p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-stone-900 tracking-tight">{session.title}</h1>
+      <div className="bg-white border border-stone-200 p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold text-stone-900 tracking-tight">{session.title}</h1>
               <span
                 className={`px-2.5 py-0.5 text-xs font-medium capitalize ${
                   STATUS_PILL[session.status] ?? STATUS_PILL.draft
@@ -141,18 +151,18 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           </div>
 
           {/* Stats */}
-          <div className="flex gap-px bg-stone-200 border border-stone-200 shrink-0">
-            <div className="bg-white px-5 py-3 text-center">
-              <p className="text-2xl font-bold text-stone-900">{attendees.length}</p>
-              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Attendees</p>
+          <div className="grid grid-cols-3 gap-px bg-stone-200 border border-stone-200 w-full lg:w-auto">
+            <div className="bg-white px-3 sm:px-5 py-2 sm:py-3 text-center min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-stone-900">{attendees.length}</p>
+              <p className="font-mono text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Attendees</p>
             </div>
-            <div className="bg-white px-5 py-3 text-center">
-              <p className="text-2xl font-bold text-stone-900">{submittedCount}</p>
-              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Submitted</p>
+            <div className="bg-white px-3 sm:px-5 py-2 sm:py-3 text-center min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-stone-900">{submittedCount}</p>
+              <p className="font-mono text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Submitted</p>
             </div>
-            <div className="bg-white px-5 py-3 text-center">
-              <p className="text-2xl font-bold text-orange-700">{responseRate}%</p>
-              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Rate</p>
+            <div className="bg-white px-3 sm:px-5 py-2 sm:py-3 text-center min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-orange-700">{responseRate}%</p>
+              <p className="font-mono text-[9px] sm:text-[10px] text-stone-400 uppercase tracking-[0.18em] mt-0.5">Rate</p>
             </div>
           </div>
         </div>
@@ -162,6 +172,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           sessionId={session.id}
           currentStatus={session.status}
           wallEnabled={session.wall_enabled}
+          appUrl={appUrl}
         />
       </div>
 
@@ -178,7 +189,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       )}
 
       {/* Questions */}
-      <div className="bg-white border border-stone-200 p-6">
+      <div className="bg-white border border-stone-200 p-4 sm:p-6">
         <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-3">Questions</h2>
         {session.questions.length > 0 ? (
           <ol className="space-y-2 list-decimal list-inside">
@@ -194,7 +205,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       </div>
 
       {/* Attendees */}
-      <div className="bg-white border border-stone-200 p-6 space-y-5">
+      <div className="bg-white border border-stone-200 p-4 sm:p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] flex items-center gap-2">
             <Users size={12} />
@@ -204,7 +215,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
             <form action={sendReminders.bind(null, session.id)}>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 hover:border-stone-300 active:scale-[0.98] transition-all touch-manipulation"
+                className="inline-flex items-center gap-1.5 border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 hover:border-stone-300 active:scale-[0.98] transition-all touch-manipulation w-full sm:w-auto justify-center"
               >
                 <Bell size={13} />
                 Send Reminders
@@ -224,9 +235,9 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
 
         {/* Attendee list */}
         {attendees.length > 0 ? (
-          <div className="divide-y divide-stone-50">
-            {/* Table header */}
-            <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 pb-2 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
+          <div className="space-y-3">
+            {/* Desktop Table header */}
+            <div className="hidden md:grid grid-cols-[1fr_1fr_auto_auto] gap-4 pb-2 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
               <span>Name</span>
               <span>Email</span>
               <span>Status</span>
@@ -238,32 +249,57 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
               return (
                 <div
                   key={a.id}
-                  className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center py-3"
+                  className="border border-stone-100 p-3 md:border-0 md:p-0 md:grid md:grid-cols-[1fr_1fr_auto_auto] md:gap-4 md:items-center space-y-2 md:space-y-0"
                 >
-                  <span className="text-sm font-medium text-stone-800 truncate">
-                    {a.name}
-                  </span>
-                  <span className="text-sm text-stone-500 truncate flex items-center gap-1">
-                    <Mail size={13} className="shrink-0 text-stone-300" />
-                    {a.email}
-                  </span>
-                  <span>
-                    {a.submitted_at ? (
-                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                        <CheckCircle2 size={13} /> Done
+                  {/* Mobile card layout */}
+                  <div className="md:contents">
+                    <div className="flex items-start justify-between gap-2 md:block">
+                      <div>
+                        <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-0.5 md:hidden">Name</p>
+                        <span className="text-sm font-medium text-stone-800 wrap-break-word">
+                          {a.name}
+                        </span>
+                      </div>
+                      <div className="md:hidden">
+                        {a.submitted_at ? (
+                          <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                            <CheckCircle2 size={13} /> Done
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs text-stone-400">
+                            <Clock size={13} /> Pending
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="md:block">
+                      <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-0.5 md:hidden">Email</p>
+                      <span className="text-sm text-stone-500 break-all flex items-center gap-1">
+                        <Mail size={13} className="shrink-0 text-stone-300" />
+                        {a.email}
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs text-stone-400">
-                        <Clock size={13} /> Pending
-                      </span>
-                    )}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="text-xs text-stone-300 truncate max-w-24 hidden lg:block">
-                      …{a.unique_token.slice(-8)}
+                    </div>
+                    <span className="hidden md:block">
+                      {a.submitted_at ? (
+                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <CheckCircle2 size={13} /> Done
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs text-stone-400">
+                          <Clock size={13} /> Pending
+                        </span>
+                      )}
                     </span>
-                    <CopyButton text={link} />
-                  </span>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider md:hidden">Link</p>
+                      <span className="flex items-center gap-1">
+                        <span className="text-xs text-stone-300 truncate max-w-32 md:max-w-24 md:hidden md:lg:block">
+                          …{a.unique_token.slice(-8)}
+                        </span>
+                        <CopyButton text={link} />
+                      </span>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -277,7 +313,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       </div>
       {/* AI Summary */}
       {responsesList.some((r) => r.transcript) && (
-        <div className="bg-white border border-stone-200 p-6 space-y-4">
+        <div className="bg-white border border-stone-200 p-4 sm:p-6 space-y-4">
           <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] flex items-center gap-2">
             <Sparkles size={12} className="text-orange-500" />
             AI Session Summary
@@ -287,7 +323,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       )}
 
       {/* Responses */}
-      <div className="bg-white border border-stone-200 p-6 space-y-4">
+      <div className="bg-white border border-stone-200 p-4 sm:p-6 space-y-4">
         <h2 className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] flex items-center gap-2">
           <MessageSquare size={12} />
           Responses ({responsesList.length})

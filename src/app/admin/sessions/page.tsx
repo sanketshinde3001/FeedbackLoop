@@ -14,9 +14,18 @@ const STATUS_STYLES: Record<string, string> = {
 export default async function SessionsPage() {
   const supabase = await createClient();
 
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("User not found");
+
+  // Only fetch sessions owned by the current user
   const { data: sessions, error } = await supabase
     .from("sessions")
     .select("id, title, status, session_date, wall_enabled, created_at")
+    .eq("host_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) throw error;

@@ -9,9 +9,26 @@ export const metadata: Metadata = { title: "Attendees" };
 export default async function AttendeesPage() {
   const supabase = await createClient();
 
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("User not found");
+
+  // Get sessions owned by the current user
+  const { data: userSessions } = await supabase
+    .from("sessions")
+    .select("id")
+    .eq("host_id", user.id);
+
+  const userSessionIds = userSessions?.map((s) => s.id) ?? [];
+
+  // Fetch attendees only from user's sessions
   const { data: attendees } = await supabase
     .from("attendees")
     .select("id, name, email, submitted_at, reminded_at, created_at, session_id, sessions(title, status)")
+    .in("session_id", userSessionIds.length > 0 ? userSessionIds : ["no-sessions"])
     .order("created_at", { ascending: false });
 
   const rows = (attendees ?? []) as unknown as Array<{

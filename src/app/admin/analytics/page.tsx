@@ -46,11 +46,38 @@ function StatCard({ label, value, sub, icon }: { label: string; value: string | 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
 
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("User not found");
+
+  // Get sessions owned by the current user
+  const { data: userSessions } = await supabase
+    .from("sessions")
+    .select("id")
+    .eq("host_id", user.id);
+
+  const userSessionIds = userSessions?.map((s) => s.id) ?? [];
+
   const [sessionsRes, attendeesRes, responsesRes, reactionsRes] = await Promise.all([
-    supabase.from("sessions").select("id, title, status, created_at"),
-    supabase.from("attendees").select("id, submitted_at, session_id"),
-    supabase.from("responses").select("id, sentiment, created_at, session_id"),
-    supabase.from("reactions").select("emoji_type"),
+    supabase
+      .from("sessions")
+      .select("id, title, status, created_at")
+      .in("id", userSessionIds.length > 0 ? userSessionIds : ["no-sessions"]),
+    supabase
+      .from("attendees")
+      .select("id, submitted_at, session_id")
+      .in("session_id", userSessionIds.length > 0 ? userSessionIds : ["no-sessions"]),
+    supabase
+      .from("responses")
+      .select("id, sentiment, created_at, session_id")
+      .in("session_id", userSessionIds.length > 0 ? userSessionIds : ["no-sessions"]),
+    supabase
+      .from("reactions")
+      .select("emoji_type")
+      .in("session_id", userSessionIds.length > 0 ? userSessionIds : ["no-sessions"]),
   ]);
 
   const sessions  = sessionsRes.data  ?? [];

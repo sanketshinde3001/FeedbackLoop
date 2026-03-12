@@ -34,12 +34,56 @@ function StatCard({ label, value, icon, sub }: StatCardProps) {
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
 
+  // Get current user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("User not found");
+
   const [sessionsRes, attendeesRes, responsesRes, reactionsRes] =
     await Promise.all([
-      supabase.from("sessions").select("id", { count: "exact", head: true }),
-      supabase.from("attendees").select("id", { count: "exact", head: true }),
-      supabase.from("responses").select("id", { count: "exact", head: true }),
-      supabase.from("reactions").select("id", { count: "exact", head: true }),
+      // Count sessions owned by the current user
+      supabase
+        .from("sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("host_id", user.id),
+      // Count attendees in sessions owned by the current user
+      supabase
+        .from("attendees")
+        .select("id", { count: "exact", head: true })
+        .in(
+          "session_id",
+          await supabase
+            .from("sessions")
+            .select("id")
+            .eq("host_id", user.id)
+            .then((r) => r.data?.map((s) => s.id) ?? [])
+        ),
+      // Count responses in sessions owned by the current user
+      supabase
+        .from("responses")
+        .select("id", { count: "exact", head: true })
+        .in(
+          "session_id",
+          await supabase
+            .from("sessions")
+            .select("id")
+            .eq("host_id", user.id)
+            .then((r) => r.data?.map((s) => s.id) ?? [])
+        ),
+      // Count reactions in sessions owned by the current user
+      supabase
+        .from("reactions")
+        .select("id", { count: "exact", head: true })
+        .in(
+          "session_id",
+          await supabase
+            .from("sessions")
+            .select("id")
+            .eq("host_id", user.id)
+            .then((r) => r.data?.map((s) => s.id) ?? [])
+        ),
     ]);
 
   const stats = [

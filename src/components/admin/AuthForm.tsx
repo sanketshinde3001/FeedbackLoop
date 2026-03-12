@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DM_Serif_Display } from "next/font/google";
 
 const serif = DM_Serif_Display({
@@ -18,6 +18,17 @@ interface Props {
 
 export function AuthForm({ defaultMode, error, success }: Props) {
   const [mode, setMode] = useState<"login" | "signup">(defaultMode);
+
+  // Clear error/success from URL after displaying them
+  useEffect(() => {
+    if (error || success) {
+      const url = new URL(window.location);
+      url.searchParams.delete("error");
+      url.searchParams.delete("success");
+      url.searchParams.delete("mode");
+      window.history.replaceState({}, "", url);
+    }
+  }, [error, success]);
 
   return (
     <div className="space-y-8">

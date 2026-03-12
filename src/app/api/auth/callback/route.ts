@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createRouteHandlerClient } from "@/lib/supabase/server";
 
 // GET /api/auth/callback
 // Handles Supabase email confirmation & OAuth redirects
@@ -9,10 +9,11 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next") ?? "/admin";
 
   if (code) {
-    const supabase = await createClient();
+    const redirectResponse = NextResponse.redirect(`${origin}${next}`);
+    const supabase = createRouteHandlerClient(request, redirectResponse);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return redirectResponse;
     }
   }
 

@@ -2,7 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
+import { DM_Serif_Display } from "next/font/google";
 import { MessageSquare } from "lucide-react";
+
+const serif = DM_Serif_Display({
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-serif",
+});
 
 interface Props {
   params: Promise<{ sessionId: string }>;
@@ -21,14 +30,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 const SENTIMENT_BADGE: Record<string, string> = {
   positive: "bg-green-100 text-green-700",
-  neutral: "bg-gray-100 text-gray-600",
+  neutral: "bg-stone-100 text-stone-600",
   negative: "bg-red-100 text-red-600",
 };
 
-const EMOJI_LABEL: Record<string, string> = {
-  "👍": "Loved it",
-  "😐": "It was okay",
-  "😕": "Not great",
+const EMOJI_MAP: Record<string, string> = {
+  loved_it: "❤️ Loved it",
+  helpful: "👍 Helpful",
+  needs_improvement: "🔧 Needs improvement",
+  confused: "😕 Confused",
 };
 
 export default async function WallPage({ params }: Props) {
@@ -45,11 +55,11 @@ export default async function WallPage({ params }: Props) {
 
   if (!session.wall_enabled) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="text-center max-w-sm">
-          <MessageSquare size={48} className="mx-auto text-gray-300 mb-4" />
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Wall not available</h1>
-          <p className="text-gray-500 text-sm">
+      <main className="min-h-screen bg-stone-100 flex items-center justify-center p-4">
+        <div className="text-center max-w-sm bg-white border border-stone-200 p-8">
+          <MessageSquare size={48} className="mx-auto text-stone-300 mb-4" />
+          <h1 className={`${serif.className} text-2xl text-stone-900 mb-2 italic`}>Wall not available</h1>
+          <p className="text-stone-500 text-sm">
             The testimonial wall for this session has not been enabled.
           </p>
         </div>
@@ -90,18 +100,18 @@ export default async function WallPage({ params }: Props) {
   const responses = (rawResponses ?? []) as unknown as ResponseRow[];
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50">
+    <main className={`min-h-screen bg-stone-100 ${serif.variable}`}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 text-center">
-          <p className="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-2">
-            Testimonials
+      <div className="bg-white border-b border-stone-200 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6 sm:py-10">
+          <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.25em] mb-2">
+            Testimonial Wall
           </p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h1 className={`${serif.className} text-3xl sm:text-5xl text-stone-900 tracking-tight leading-tight mb-3`}>
             {session.title}
           </h1>
           {session.session_date && (
-            <p className="text-sm text-gray-400 mt-2">
+            <p className="text-sm text-stone-500">
               {new Date(session.session_date).toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "long",
@@ -110,95 +120,105 @@ export default async function WallPage({ params }: Props) {
             </p>
           )}
           {responses.length > 0 && (
-            <p className="mt-3 text-sm text-gray-500">
-              {responses.length} attendee{responses.length !== 1 ? "s" : ""} shared their feedback
+            <p className="mt-3 text-sm text-stone-600 font-mono">
+              {responses.length} testimonial{responses.length !== 1 ? "s" : ""} • All from real attendees
             </p>
           )}
         </div>
       </div>
 
-      {/* Cards */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-10">
         {responses.length === 0 ? (
           <div className="text-center py-20">
-            <MessageSquare size={52} className="mx-auto text-gray-200 mb-4" />
-            <p className="text-gray-400 text-sm">No approved testimonials yet.</p>
+            <MessageSquare size={56} className="mx-auto text-stone-200 mb-4" />
+            <p className="text-stone-400 text-sm">No approved testimonials yet.</p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {responses.map((r) => {
               const emoji = reactionMap.get(r.attendee_id) ?? null;
               const snippet = r.transcript
-                ? r.transcript.length > 200
-                  ? r.transcript.slice(0, 200).trimEnd() + "…"
+                ? r.transcript.length > 150
+                  ? r.transcript.slice(0, 150).trimEnd() + "…"
                   : r.transcript
                 : null;
 
               return (
                 <div
                   key={r.id}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col"
+                  className="bg-white border border-stone-200 overflow-hidden flex flex-col group hover:border-orange-400 hover:shadow-md transition-all duration-300"
                 >
-                  {/* Video player — shown first if available */}
+                  {/* Video section with play overlay */}
                   {r.video_url && (
-                    <div className="bg-gray-950 aspect-video">
-                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                    <div className="relative bg-stone-900 aspect-video overflow-hidden group">
                       <video
                         src={r.video_url}
+                        autoPlay
+                        muted
+                        loop
                         controls
+                        controlsList="nodownload"
                         playsInline
-                        preload="none"
                         className="w-full h-full object-cover"
                       />
-                    </div>
-                  )}
-
-                  <div className="p-5 flex flex-col gap-3 flex-1">
-                  {/* Top row */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {/* Avatar initial */}
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold shrink-0">
-                        {(r.attendees?.name ?? "?")[0].toUpperCase()}
+                      {/* Play icon overlay on hover */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <div className="w-16 h-16 rounded-full bg-orange-700 flex items-center justify-center shadow-lg">
+                          <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
                       </div>
-                      <span className="text-sm font-semibold text-gray-800 truncate">
-                        {r.attendees?.name ?? "Anonymous"}
-                      </span>
                     </div>
-                    {emoji && (
-                      <span
-                        title={EMOJI_LABEL[emoji]}
-                        className="text-xl"
-                        aria-label={EMOJI_LABEL[emoji]}
-                      >
-                        {emoji}
-                      </span>
+                  )}
+
+                  {/* Content section */}
+                  <div className="p-5 flex flex-col gap-4 flex-1">
+                    {/* Name + Emoji */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-orange-700 text-white flex items-center justify-center text-sm font-bold shrink-0">
+                          {(r.attendees?.name ?? "?")[0].toUpperCase()}
+                        </div>
+                        <span className="text-sm font-semibold text-stone-900 truncate">
+                          {r.attendees?.name ?? "Anonymous"}
+                        </span>
+                      </div>
+                      {emoji && (
+                        <span
+                          className="text-xl shrink-0"
+                          title={EMOJI_MAP[emoji] ?? emoji}
+                          aria-label={EMOJI_MAP[emoji] ?? emoji}
+                        >
+                          {emoji}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Transcript snippet */}
+                    {snippet ? (
+                      <p className="text-sm text-stone-700 leading-relaxed flex-1 italic">
+                        &ldquo;{snippet}&rdquo;
+                      </p>
+                    ) : (
+                      !r.video_url && (
+                        <p className="text-sm text-stone-400">No transcript available</p>
+                      )
                     )}
-                  </div>
 
-                  {/* Transcript snippet */}
-                  {snippet ? (
-                    <p className="text-sm text-gray-600 leading-relaxed flex-1">
-                      &ldquo;{snippet}&rdquo;
-                    </p>
-                  ) : (
-                    !r.video_url && (
-                      <p className="text-sm text-gray-300 italic flex-1">No transcript available</p>
-                    )
-                  )}
-
-                  {/* Sentiment badge */}
-                  {r.sentiment && (
-                    <div>
-                      <span
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                          SENTIMENT_BADGE[r.sentiment] ?? SENTIMENT_BADGE.neutral
-                        }`}
-                      >
-                        {r.sentiment}
-                      </span>
-                    </div>
-                  )}
+                    {/* Sentiment badge */}
+                    {r.sentiment && (
+                      <div>
+                        <span
+                          className={`inline-block px-3 py-1 text-xs font-medium capitalize border ${
+                            SENTIMENT_BADGE[r.sentiment] ?? SENTIMENT_BADGE.neutral
+                          }`}
+                        >
+                          {r.sentiment}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -208,13 +228,15 @@ export default async function WallPage({ params }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="text-center pb-10">
-        <p className="text-xs text-gray-300">
-          Powered by{" "}
-          <Link href="/" className="hover:text-gray-400 transition-colors">
-            FeedbackLoop
-          </Link>
-        </p>
+      <div className="border-t border-stone-200 bg-white mt-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8 text-center">
+          <p className="text-xs text-stone-500 font-mono uppercase tracking-wider">
+            Powered by{" "}
+            <Link href="/" className="text-orange-700 hover:text-orange-800 transition-colors font-bold">
+              FeedbackLoop
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );

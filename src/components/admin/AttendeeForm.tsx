@@ -21,25 +21,25 @@ export function AddAttendeeForm({ sessionId }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 flex-wrap">
+    <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2">
       <input
         name="name"
         type="text"
         required
         placeholder="Full name"
-        className="flex-1 min-w-32 border border-stone-300 bg-stone-50 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
+        className="flex-1 min-w-0 border border-stone-300 bg-stone-50 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
       />
       <input
         name="email"
         type="email"
         required
         placeholder="email@example.com"
-        className="flex-1 min-w-48 border border-stone-300 bg-stone-50 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
+        className="flex-1 min-w-0 border border-stone-300 bg-stone-50 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-stone-400"
       />
       <button
         type="submit"
         disabled={isPending}
-        className="inline-flex items-center gap-2 bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-60 transition-colors shrink-0"
+        className="inline-flex items-center justify-center gap-2 bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-60 transition-colors sm:shrink-0"
       >
         {isPending ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
         Add
@@ -108,11 +108,11 @@ export function CSVUploadForm({ sessionId }: Props) {
         className="w-full border border-stone-300 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-stone-400 resize-none"
       />
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center gap-2 bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-60 transition-colors"
+          className="inline-flex items-center justify-center gap-2 bg-orange-700 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-800 disabled:opacity-60 transition-colors"
         >
           {isPending && <Loader2 size={14} className="animate-spin" />}
           Import
