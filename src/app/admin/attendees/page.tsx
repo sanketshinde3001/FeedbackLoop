@@ -14,7 +14,7 @@ export default async function AttendeesPage() {
     .select("id, name, email, submitted_at, reminded_at, created_at, session_id, sessions(title, status)")
     .order("created_at", { ascending: false });
 
-  const rows = (attendees ?? []) as Array<{
+  const rows = (attendees ?? []) as unknown as Array<{
     id: string;
     name: string;
     email: string;

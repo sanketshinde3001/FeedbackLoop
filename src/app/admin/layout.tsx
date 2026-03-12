@@ -7,6 +7,7 @@ const serif = DM_Serif_Display({
   style: ["normal", "italic"],
   subsets: ["latin"],
   display: "swap",
+  variable: "--font-serif",
 });
 
 export default async function AdminLayout({

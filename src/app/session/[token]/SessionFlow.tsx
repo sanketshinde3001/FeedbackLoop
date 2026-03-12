@@ -406,7 +406,7 @@ export default function SessionFlow({
               Welcome, {attendeeName} 👋
             </h2>
             <p className="text-stone-500 mt-2 text-sm leading-relaxed">
-              We'd love to hear your thoughts. You'll first pick an emoji
+              We&apos;d love to hear your thoughts. You&apos;ll first pick an emoji
               reaction, then record a short video — it only takes a minute.
             </p>
           </div>
