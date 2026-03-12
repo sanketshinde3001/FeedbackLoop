@@ -2,11 +2,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { CheckCircle2, Clock, Mail, Users, CalendarDays } from "lucide-react";
 import Link from "next/link";
-import { sendReminders } from "@/app/admin/sessions/actions";
+import { sendReminderToAttendee } from "@/app/admin/sessions/actions";
+import StatusMessage from "@/components/StatusMessage";
 
 export const metadata: Metadata = { title: "Attendees" };
 
-export default async function AttendeesPage() {
+export default async function AttendeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   // Get current user
@@ -54,6 +60,12 @@ export default async function AttendeesPage() {
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Attendees</h1>
         <p className="text-sm text-stone-400 mt-1">All attendees across every session</p>
       </div>
+
+      {/* Status Message */}
+      <StatusMessage 
+        success={params.success} 
+        error={params.error} 
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-px bg-stone-200 border border-stone-200">
@@ -138,13 +150,13 @@ export default async function AttendeesPage() {
 
                   {/* Remind */}
                   {!a.submitted_at ? (
-                    <form action={sendReminders.bind(null, a.session_id)}>
+                    <form action={sendReminderToAttendee.bind(null, a.id)}>
                       <button
                         type="submit"
-                        title="Send reminder to this session's pending attendees"
+                        title="Send reminder email to this attendee"
                         className="text-xs text-stone-400 hover:text-orange-700 underline underline-offset-2 transition-colors touch-manipulation whitespace-nowrap"
                       >
-                        Remind all
+                        Remind
                       </button>
                     </form>
                   ) : (

@@ -62,9 +62,9 @@ async function callGemini(transcript: string, apiKey: string): Promise<GeminiRes
   };
 }
 
-export async function analyzeTranscript(transcript: string): Promise<GeminiResult | null> {
+export async function analyzeTranscript(transcript: string | null): Promise<GeminiResult | null> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || transcript.trim().length < 10) return null;
+  if (!apiKey || !transcript || transcript.trim().length < 10) return null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) {

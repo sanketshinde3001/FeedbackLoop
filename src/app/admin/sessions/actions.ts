@@ -274,6 +274,58 @@ export async function sendReminders(sessionId: string) {
   );
 }
 
+// ─── Send Reminder to Single Attendee ────────────────────────
+export async function sendReminderToAttendee(attendeeId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/admin/login");
+
+  // Get attendee details
+  const { data: attendee } = await supabase
+    .from("attendees")
+    .select("id, name, email, unique_token, session_id, submitted_at")
+    .eq("id", attendeeId)
+    .single();
+
+  if (!attendee) throw new Error("Attendee not found");
+
+  // If already submitted, don't remind
+  if (attendee.submitted_at) {
+    redirect(`/admin/attendees?error=This+attendee+has+already+submitted`);
+  }
+
+  // Verify ownership
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("title, host_id")
+    .eq("id", attendee.session_id)
+    .single();
+
+  if (!session || session.host_id !== user.id) {
+    throw new Error("Unauthorized");
+  }
+
+  // Send reminder email to single attendee
+  await sendReminderEmail({
+    to: attendee.email,
+    name: attendee.name,
+    sessionTitle: session.title,
+    token: attendee.unique_token,
+  });
+
+  // Mark as reminded
+  await supabase
+    .from("attendees")
+    .update({ reminded_at: new Date().toISOString() })
+    .eq("id", attendeeId);
+
+  revalidatePath("/admin/attendees");
+  redirect(`/admin/attendees?success=${encodeURIComponent(`Reminder sent to ${attendee.name}`)}`);
+}
+
 // ─── Delete Session ──────────────────────────────────────────
 export async function deleteSession(sessionId: string) {
   const supabase = await createClient();

@@ -46,13 +46,21 @@ export async function POST(request: NextRequest) {
 
   // Run Deepgram if video exists but no transcript yet
   let transcript = response.transcript;
+  let transcriptionErr: string | null = null;
   if (!transcript && response.video_url) {
-    transcript = await transcribeVideoUrl(response.video_url);
+    const result = await transcribeVideoUrl(response.video_url);
+    if (result.success && result.transcript) {
+      transcript = result.transcript;
+    } else if (result.error) {
+      transcriptionErr = result.error;
+      console.warn("[reanalyze] transcription failed:", result.error);
+    }
   }
 
   if (!transcript) {
+    const message = transcriptionErr || "No transcript available — video may still be processing or was not uploaded.";
     return NextResponse.json(
-      { error: "No transcript available — video may still be processing or was not uploaded." },
+      { error: message },
       { status: 422 }
     );
   }

@@ -609,7 +609,6 @@ export default function SessionFlow({
           {/* Camera area */}
           {/* 4:3 on mobile (fullscreen-friendly portrait), 16:9 on desktop */}
           <div className="relative bg-stone-900 overflow-hidden aspect-4/3 sm:aspect-video">
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               ref={videoRef}
               autoPlay
@@ -716,7 +715,6 @@ export default function SessionFlow({
 
           {/* Video preview — key forces fresh element on new recording */}
           <div className="overflow-hidden bg-stone-900 aspect-4/3 sm:aspect-video">
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <video
               key={previewUrl}
               ref={previewVideoRef}

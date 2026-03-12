@@ -80,7 +80,19 @@ export async function POST(request: NextRequest) {
   // Get transcript from Deepgram (server-side, non-blocking on failure)
   let transcript: string | null = null;
   if (video_url) {
-    transcript = await transcribeVideoUrl(video_url);
+    const result = await transcribeVideoUrl(video_url);
+    if (result.success && result.transcript) {
+      transcript = result.transcript;
+    } else if (result.errorType === "no_audio") {
+      // Return user-friendly error for missing audio
+      return NextResponse.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    } else if (result.error) {
+      // Log other transcription errors but continue (non-blocking)
+      console.warn("[submit] transcription failed:", result.error);
+    }
   }
 
   // Run Gemini sentiment on the transcript (non-blocking on failure)

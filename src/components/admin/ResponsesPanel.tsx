@@ -91,7 +91,11 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
 
   function toggle(set: Set<string>, id: string): Set<string> {
     const n = new Set(set);
-    n.has(id) ? n.delete(id) : n.add(id);
+    if (n.has(id)) {
+      n.delete(id);
+    } else {
+      n.add(id);
+    }
     return n;
   }
 
@@ -120,7 +124,6 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
             {/* Inline video player */}
             {r.video_url && videoShown && (
               <div className="bg-gray-950 aspect-video w-full">
-                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                 <video
                   key={r.video_url}
                   src={r.video_url}
@@ -171,9 +174,10 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
 
               {/* Error */}
               {errors[r.id] && (
-                <p className="text-xs text-red-600 bg-red-50 border-l-2 border-red-500 px-3 py-2">
-                  {errors[r.id]}
-                </p>
+                <div className="bg-red-50/80 border border-red-200 rounded px-3 py-3 backdrop-blur-sm">
+                  <p className="text-xs font-medium text-red-700 mb-1">⚠ Cannot analyze</p>
+                  <p className="text-xs text-red-600 leading-relaxed">{errors[r.id]}</p>
+                </div>
               )}
 
               {/* Transcript */}

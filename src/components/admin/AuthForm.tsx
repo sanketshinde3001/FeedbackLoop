@@ -22,7 +22,7 @@ export function AuthForm({ defaultMode, error, success }: Props) {
   // Clear error/success from URL after displaying them
   useEffect(() => {
     if (error || success) {
-      const url = new URL(window.location);
+      const url = new URL(window.location.href);
       url.searchParams.delete("error");
       url.searchParams.delete("success");
       url.searchParams.delete("mode");
