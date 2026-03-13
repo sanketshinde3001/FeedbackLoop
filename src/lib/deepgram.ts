@@ -139,7 +139,7 @@ export async function transcribeVideoUrl(
   }
 
   try {
-    let data = await requestDeepgram(apiKey, videoUrl, { language });
+    const data = await requestDeepgram(apiKey, videoUrl, { language });
     if (!data) {
       return {
         success: false,
