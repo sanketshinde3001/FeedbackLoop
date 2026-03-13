@@ -70,6 +70,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
   if (session.host_id !== user.id) notFound();
   const attendees = attendeesRes.data ?? [];
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const publicJoinLink = `${appUrl}/session/join/${session.id}`;
 
   const submittedCount = attendees.filter((a) => a.submitted_at).length;
   const responseRate =
@@ -180,6 +181,30 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           wallEnabled={session.wall_enabled}
           appUrl={appUrl}
         />
+
+        <div className="border border-stone-200 bg-stone-50 p-3 sm:p-4">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">General feedback link</p>
+              <p className="text-xs text-stone-500 mt-1">
+                Share this on WhatsApp/email. User enters name + email, then gets their personal feedback link.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] bg-orange-100 text-orange-700 px-2 py-1">
+              New
+            </span>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              readOnly
+              value={publicJoinLink}
+              className="w-full border border-stone-300 bg-white px-3 py-2 text-xs text-stone-700"
+              aria-label="General feedback link"
+            />
+            <CopyButton text={publicJoinLink} />
+          </div>
+        </div>
       </div>
 
       {/* Alerts */}
