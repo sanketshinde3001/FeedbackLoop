@@ -31,7 +31,7 @@ export default async function SessionsPage() {
   if (error) throw error;
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="w-full max-w-7xl mx-auto space-y-8">
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
           <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.25em] mb-2">Admin</p>

@@ -43,12 +43,12 @@ export function SessionControls({ sessionId, currentStatus, wallEnabled, appUrl 
   }
 
   return (
-    <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
+    <div className="grid grid-cols-2 gap-2">
       {/* Status toggle */}
       <button
         onClick={handleStatusChange}
         disabled={isPending}
-        className={`inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 transition-colors ${STATUS_STYLES[currentStatus]}`}
+        className={`col-span-2 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 transition-colors ${STATUS_STYLES[currentStatus]}`}
       >
         {isPending && <Loader2 size={14} className="animate-spin" />}
         {flow.label}
@@ -63,8 +63,8 @@ export function SessionControls({ sessionId, currentStatus, wallEnabled, appUrl 
         {wallEnabled ? "Disable Wall" : "Enable Wall"}
       </button>
 
-      {/* View Wall button — only show when wall is enabled */}
-      {wallEnabled && (
+      {/* View Wall — only when wall is enabled, else empty slot placeholder */}
+      {wallEnabled ? (
         <Link
           href={wallUrl}
           target="_blank"
@@ -74,13 +74,15 @@ export function SessionControls({ sessionId, currentStatus, wallEnabled, appUrl 
           <Eye size={14} />
           View Wall
         </Link>
+      ) : (
+        <span />
       )}
 
       {/* Delete */}
       <button
         onClick={handleDelete}
         disabled={isPending}
-        className="inline-flex items-center justify-center gap-2 border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 transition-colors sm:ml-auto"
+        className="col-span-2 inline-flex items-center justify-center gap-2 border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 transition-colors"
       >
         Delete Session
       </button>

@@ -37,20 +37,17 @@ export default async function AdminLayout({
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Top bar */}
-        <header className="h-14 shrink-0 flex items-center justify-between px-4 sm:px-6 bg-stone-900 border-b border-stone-800">
+        <header className="h-14 shrink-0 flex items-center justify-between px-4 sm:px-6 bg-stone-100 border-b border-stone-200">
           {/* Mobile: hamburger + brand */}
           <div className="flex items-center gap-3">
             <MobileNav />
-            <span className={`${serif.className} text-base text-white tracking-tight sm:hidden`}>
+            <span className={`${serif.className} text-base text-stone-900 tracking-tight sm:hidden`}>
               FeedbackLoop
             </span>
           </div>
 
-          {/* User pill */}
+          {/* User avatar */}
           <div className="flex items-center gap-2.5">
-            <span className="text-xs text-stone-400 hidden sm:block truncate max-w-44">
-              {user.email}
-            </span>
             <div className="h-7 w-7 rounded-full bg-orange-700 flex items-center justify-center text-white text-xs font-semibold shrink-0">
               {initial}
             </div>

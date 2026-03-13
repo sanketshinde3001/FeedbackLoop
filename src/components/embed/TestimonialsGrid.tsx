@@ -17,6 +17,7 @@ interface Props {
   cardColor: string;
   accentColor: string;
   borderColor: string;
+  backgroundColor: string;
 }
 
 function TestimonialVideo({
@@ -102,6 +103,7 @@ export default function TestimonialsGrid({
   cardColor,
   accentColor,
   borderColor,
+  backgroundColor,
 }: Props) {
   const style = useMemo(
     () =>
@@ -110,8 +112,9 @@ export default function TestimonialsGrid({
         "--embed-card": cardColor,
         "--embed-accent": accentColor,
         "--embed-border": borderColor,
+        "--embed-bg": backgroundColor,
       }) as React.CSSProperties,
-    [textColor, cardColor, accentColor, borderColor]
+    [textColor, cardColor, accentColor, borderColor, backgroundColor]
   );
 
   if (testimonials.length === 0) {
@@ -124,15 +127,11 @@ export default function TestimonialsGrid({
     );
   }
 
-  const frameClass =
-    template === "aurora"
-      ? "bg-[linear-gradient(115deg,#fff_0%,#fff7ed_44%,#ffedd5_100%)]"
-      : template === "spotlight"
-        ? "bg-[linear-gradient(145deg,#ffffff_0%,#f5f5f4_42%,#fff_100%)]"
-        : "bg-[linear-gradient(165deg,#ffffff_0%,#f8fafc_100%)]";
-
   return (
-    <section style={style} className={`w-full max-w-6xl mx-auto p-4 sm:p-6 text-(--embed-text) ${frameClass}`}>
+    <section
+      style={{ ...style, background: "var(--embed-bg)" }}
+      className="w-full max-w-6xl mx-auto p-4 sm:p-6 text-(--embed-text)"
+    >
       <div className="mb-5 flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">What People Say</h2>
         <span className="text-xs opacity-70">Auto-updates as new testimonials are approved</span>

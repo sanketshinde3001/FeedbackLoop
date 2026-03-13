@@ -114,7 +114,7 @@ export default async function AnalyticsPage() {
     .slice(0, 6);
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="w-full max-w-7xl mx-auto space-y-8">
       <div>
         <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.25em] mb-2">Admin</p>
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">Analytics</h1>

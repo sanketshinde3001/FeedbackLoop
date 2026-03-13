@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Check, Copy } from "lucide-react";
 
 interface Props {
   embedBaseUrl: string;
@@ -13,6 +14,7 @@ export default function EmbedSettings({ embedBaseUrl }: Props) {
   const [text, setText] = useState("#1c1917");
   const [card, setCard] = useState("#ffffff");
   const [bg, setBg] = useState("transparent");
+  const [copiedField, setCopiedField] = useState<"url" | "iframe" | null>(null);
 
   const embedUrl = useMemo(() => {
     const u = new URL(embedBaseUrl);
@@ -26,6 +28,20 @@ export default function EmbedSettings({ embedBaseUrl }: Props) {
   }, [embedBaseUrl, limit, template, accent, text, card, bg]);
 
   const iframeCode = `<iframe src="${embedUrl}" title="Testimonials" style="width:100%;min-height:680px;border:0;" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+
+  async function copyValue(value: string, field: "url" | "iframe") {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      window.setTimeout(() => {
+        setCopiedField((current) => (current === field ? null : current));
+      }, 1800);
+    } catch {
+      setCopiedField(null);
+    }
+  }
+
+  const previewBackground = bg === "transparent" ? "#ffffff" : bg;
 
   return (
     <div className="space-y-5">
@@ -86,18 +102,38 @@ export default function EmbedSettings({ embedBaseUrl }: Props) {
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.12em] font-mono text-stone-500">Embed URL</p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-xs uppercase tracking-[0.12em] font-mono text-stone-500">Embed URL</p>
+          <button
+            type="button"
+            onClick={() => copyValue(embedUrl, "url")}
+            className="inline-flex items-center gap-2 border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition-colors"
+          >
+            {copiedField === "url" ? <Check size={14} /> : <Copy size={14} />}
+            {copiedField === "url" ? "Copied" : "Copy to clipboard"}
+          </button>
+        </div>
         <textarea readOnly value={embedUrl} className="w-full border border-stone-300 bg-white p-3 text-xs text-stone-700 min-h-20" />
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.12em] font-mono text-stone-500">Iframe code</p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-xs uppercase tracking-[0.12em] font-mono text-stone-500">Iframe code</p>
+          <button
+            type="button"
+            onClick={() => copyValue(iframeCode, "iframe")}
+            className="inline-flex items-center gap-2 border border-stone-300 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 transition-colors"
+          >
+            {copiedField === "iframe" ? <Check size={14} /> : <Copy size={14} />}
+            {copiedField === "iframe" ? "Copied" : "Copy to clipboard"}
+          </button>
+        </div>
         <textarea readOnly value={iframeCode} className="w-full border border-stone-300 bg-white p-3 text-xs text-stone-700 min-h-24" />
       </div>
 
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-[0.12em] font-mono text-stone-500">Preview</p>
-        <div className="border border-stone-300 bg-white overflow-hidden">
+        <div className="border border-stone-300 overflow-hidden" style={{ background: previewBackground }}>
           <iframe src={embedUrl} title="Embed preview" className="w-full h-170" loading="lazy" />
         </div>
       </div>

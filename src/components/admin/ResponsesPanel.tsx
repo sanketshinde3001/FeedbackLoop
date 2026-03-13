@@ -207,6 +207,13 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-stone-900 truncate">{r.attendee_name}</p>
                   <p className="text-xs text-stone-400 mt-0.5 truncate">{r.attendee_email}</p>
+                  <p className="text-xs text-stone-400 mt-1">
+                    Submitted {new Date(r.created_at).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
@@ -231,7 +238,7 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                       )}
                     </span>
                   ) : (
-                    <span className="text-xs text-gray-300 italic">not analyzed</span>
+                    <span className="text-xs text-gray-400 italic">Not analyzed</span>
                   )}
                 </div>
               </div>
@@ -270,95 +277,92 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
               )}
 
               {/* Actions */}
-              <div className="space-y-3 pt-0.5">
+              <div className="space-y-3 pt-1 border-t border-stone-100">
                 <div className="flex items-center gap-2 flex-wrap">
-                {r.video_url && (
-                  <button
-                    onClick={() => setVideoOpen((s) => toggle(s, r.id))}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 hover:border-stone-300 px-3 py-1.5 transition-colors touch-manipulation"
-                  >
-                    {videoShown ? <Pause size={11} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
-                    {videoShown ? "Hide video" : "Watch video"}
-                  </button>
-                )}
+                  {r.video_url && (
+                    <button
+                      onClick={() => setVideoOpen((s) => toggle(s, r.id))}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-600 hover:text-stone-900 bg-white border border-stone-200 hover:border-stone-300 px-3 py-1.5 transition-colors touch-manipulation"
+                    >
+                      {videoShown ? <Pause size={11} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
+                      {videoShown ? "Hide video" : "Watch video"}
+                    </button>
+                  )}
 
-                {r.video_url && (
-                  <button
-                    onClick={() => handleEditVideo(r.id)}
-                    disabled={editPending}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                  >
-                    <RefreshCw size={11} className={editPending ? "animate-spin" : ""} />
-                    {editPending ? "Editing…" : canUseEdited ? "Re-edit" : "Edit it"}
-                  </button>
-                )}
+                  {r.video_url && (
+                    <button
+                      onClick={() => handleEditVideo(r.id)}
+                      disabled={editPending}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                    >
+                      <RefreshCw size={11} className={editPending ? "animate-spin" : ""} />
+                      {editPending ? "Editing…" : canUseEdited ? "Re-edit" : "Edit it"}
+                    </button>
+                  )}
 
-                <button
-                  onClick={() => handleApprove(r.id, r.approved_for_wall)}
-                  disabled={approvePending}
-                  className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border transition-colors disabled:opacity-50 touch-manipulation ${
-                    r.approved_for_wall
-                      ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                      : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                  }`}
-                >
-                  {r.approved_for_wall ? <CheckSquare size={11} /> : <Square size={11} />}
-                  {r.approved_for_wall ? `On wall (${r.wall_video_source})` : "Add to wall"}
-                </button>
+                  <button
+                    onClick={() => handleApprove(r.id, r.approved_for_wall)}
+                    disabled={approvePending}
+                    className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 border transition-colors disabled:opacity-50 touch-manipulation ${
+                      r.approved_for_wall
+                        ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                        : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    }`}
+                  >
+                    {r.approved_for_wall ? <CheckSquare size={11} /> : <Square size={11} />}
+                    {r.approved_for_wall ? `On wall (${r.wall_video_source})` : "Add to wall"}
+                  </button>
                 </div>
 
-                <div className="inline-flex items-center gap-2 border border-stone-200 bg-stone-50 px-2.5 py-1.5">
-                  <label className="text-[11px] font-mono uppercase tracking-[0.12em] text-stone-400">
-                    Use on wall
-                  </label>
-                  <select
-                    value={selectedSource}
-                    onChange={(e) =>
-                      setPreviewSource((p) => ({ ...p, [r.id]: e.target.value as "raw" | "edited" }))
-                    }
-                    className="text-xs text-stone-700 bg-transparent outline-none"
-                  >
-                    <option value="raw">Raw video</option>
-                    <option value="edited" disabled={!canUseEdited}>Edited video</option>
-                  </select>
-                </div>
-
-                <details className="text-xs text-stone-500">
-                  <summary className="cursor-pointer select-none hover:text-stone-700">More options</summary>
-                  <div className="mt-2 flex items-center gap-3 flex-wrap">
-                    {canAnalyze && (
-                      <button
-                        onClick={() => handleReanalyze(r.id)}
-                        disabled={analyzing}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                      >
-                        <RefreshCw size={11} className={analyzing ? "animate-spin" : ""} />
-                        {analyzing ? "Analyzing…" : r.sentiment ? "Re-analyze" : "Analyze now"}
-                      </button>
-                    )}
-
-                    {r.video_url && (
-                      <a
-                        href={r.video_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] text-stone-500 underline underline-offset-2 hover:text-stone-800"
-                      >
-                        Open raw file
-                      </a>
-                    )}
-                    {r.edited_video_url && (
-                      <a
-                        href={r.edited_video_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] text-orange-700 underline underline-offset-2 hover:text-orange-800"
-                      >
-                        Open edited file
-                      </a>
-                    )}
+                <div className="flex items-center gap-2 flex-wrap border-t border-stone-100 pt-2">
+                  <div className="inline-flex items-center gap-2 border border-stone-200 bg-stone-50 px-3 py-1.5">
+                    <label className="text-[11px] font-mono uppercase tracking-[0.12em] text-stone-400">
+                      Wall source
+                    </label>
+                    <select
+                      value={selectedSource}
+                      onChange={(e) =>
+                        setPreviewSource((p) => ({ ...p, [r.id]: e.target.value as "raw" | "edited" }))
+                      }
+                      className="text-xs text-stone-700 bg-transparent outline-none"
+                    >
+                      <option value="raw">Raw video</option>
+                      <option value="edited" disabled={!canUseEdited}>Edited video</option>
+                    </select>
                   </div>
-                </details>
+
+                  {canAnalyze && (
+                    <button
+                      onClick={() => handleReanalyze(r.id)}
+                      disabled={analyzing}
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                    >
+                      <RefreshCw size={11} className={analyzing ? "animate-spin" : ""} />
+                      {analyzing ? "Analyzing…" : r.sentiment ? "Re-analyze" : "Analyze"}
+                    </button>
+                  )}
+
+                  {r.video_url && (
+                    <a
+                      href={r.video_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-500 hover:text-stone-800 bg-white border border-stone-200 hover:border-stone-300 px-3 py-1.5 transition-colors"
+                    >
+                      Raw file
+                    </a>
+                  )}
+                  {r.edited_video_url && (
+                    <a
+                      href={r.edited_video_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 hover:text-orange-800 bg-orange-50 border border-orange-200 hover:border-orange-300 px-3 py-1.5 transition-colors"
+                    >
+                      Edited file
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>

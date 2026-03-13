@@ -55,6 +55,7 @@ export default async function EmbedTestimonialsPage({ params, searchParams }: Pr
           cardColor={cardColor}
           accentColor={accentColor}
           borderColor="rgba(120,113,108,0.25)"
+          backgroundColor={backgroundColor}
         />
       </main>
     );
@@ -105,6 +106,7 @@ export default async function EmbedTestimonialsPage({ params, searchParams }: Pr
         cardColor={cardColor}
         accentColor={accentColor}
         borderColor="rgba(120,113,108,0.25)"
+        backgroundColor={backgroundColor}
       />
     </main>
   );

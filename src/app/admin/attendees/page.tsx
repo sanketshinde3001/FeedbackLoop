@@ -53,7 +53,7 @@ export default async function AttendeesPage({
   const pending = total - submitted;
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="w-full max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.25em] mb-2">Admin</p>
@@ -86,9 +86,9 @@ export default async function AttendeesPage({
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <Users size={36} className="text-stone-200" />
-            <p className="text-sm text-stone-400">No attendees yet â€” add them from a session</p>
+            <p className="text-sm text-stone-400">No attendees yet - add them from a session</p>
             <Link href="/admin/sessions" className="text-sm text-orange-700 hover:underline">
-              Go to Sessions â†’
+              Go to Sessions
             </Link>
           </div>
         ) : (
@@ -123,7 +123,7 @@ export default async function AttendeesPage({
                     className="text-xs text-orange-700 hover:underline flex items-center gap-1 truncate"
                   >
                     <CalendarDays size={11} className="shrink-0" />
-                    {a.sessions?.title ?? "â€”"}
+                    {a.sessions?.title ?? "-"}
                     {a.sessions?.status && (
                       <span className={`ml-1 px-1.5 py-0.5 text-[10px] font-medium capitalize rounded-full ${
                         a.sessions.status === "active" ? "bg-green-100 text-green-700" :
@@ -160,7 +160,7 @@ export default async function AttendeesPage({
                       </button>
                     </form>
                   ) : (
-                    <span className="text-xs text-stone-200">â€”</span>
+                    <span className="text-xs text-stone-200">-</span>
                   )}
                 </div>
               ))}

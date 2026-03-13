@@ -43,6 +43,62 @@ export default function Home() {
         </h1>
       </section>
 
+      {/* ── Hero Showcase ── */}
+      <section className="px-6 sm:px-14 py-10 sm:py-14 border-b border-stone-300">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-6">
+          <div className="border border-stone-300 bg-[linear-gradient(145deg,#fafaf9_0%,#f5f5f4_100%)] p-6 sm:p-8">
+            <p className="font-mono text-[10px] text-stone-400 tracking-[0.2em] uppercase">
+              Live sentiment pulse
+            </p>
+            <h2 className={`${serif.className} text-3xl sm:text-4xl leading-tight tracking-tight mt-3 max-w-md`}>
+              Watch the mood of your attendees shift in real time.
+            </h2>
+
+            <div className="mt-7 grid grid-cols-3 gap-px bg-stone-200 border border-stone-200">
+              <div className="bg-white p-4 text-center">
+                <p className="text-2xl font-bold text-green-600">72%</p>
+                <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.15em] mt-1">Positive</p>
+              </div>
+              <div className="bg-white p-4 text-center">
+                <p className="text-2xl font-bold text-stone-500">19%</p>
+                <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.15em] mt-1">Neutral</p>
+              </div>
+              <div className="bg-white p-4 text-center">
+                <p className="text-2xl font-bold text-red-500">9%</p>
+                <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.15em] mt-1">Negative</p>
+              </div>
+            </div>
+
+            <p className="mt-5 text-sm text-stone-500 max-w-lg leading-relaxed">
+              Every recording is transcribed and scored automatically, so you can instantly spot what landed well and what needs follow-up.
+            </p>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="border border-orange-300 bg-orange-50 p-4 sm:p-5">
+              <p className="font-mono text-[10px] text-orange-700 tracking-[0.2em] uppercase mb-2">
+                Latest testimonial
+              </p>
+              <p className="text-sm text-stone-700 leading-relaxed">
+                &ldquo;I expected generic questions, but the flow felt personal and easy. It took me under 2 minutes to share useful feedback.&rdquo;
+              </p>
+              <p className="mt-3 text-xs text-stone-500">Priya N. • Product Workshop</p>
+            </div>
+
+            <div className="border border-stone-300 bg-white p-4 sm:p-5">
+              <p className="font-mono text-[10px] text-stone-400 tracking-[0.2em] uppercase mb-2">
+                Trusted by teams
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs text-stone-500">
+                <div className="border border-stone-200 py-2">EdTech</div>
+                <div className="border border-stone-200 py-2">SaaS</div>
+                <div className="border border-stone-200 py-2">Events</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Body copy + CTA ── */}
       <section className="px-6 sm:px-14 py-14 sm:py-20 border-b border-stone-300 grid grid-cols-1 sm:grid-cols-[3fr_2fr] gap-12 sm:gap-24">
         <div className="space-y-5 text-stone-600 text-[15px] leading-[1.75] max-w-xl">
