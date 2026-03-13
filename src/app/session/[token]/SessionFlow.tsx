@@ -26,11 +26,26 @@ interface EmojiOption {
   emoji: string;
 }
 
+interface LanguageOption {
+  value: "en" | "hi" | "mr" | "ta" | "te" | "kn" | "ml";
+  label: string;
+}
+
 const EMOJI_OPTIONS: EmojiOption[] = [
   { value: "loved_it", label: "Loved it!", emoji: "🔥" },
   { value: "helpful", label: "Very helpful", emoji: "👍" },
   { value: "needs_improvement", label: "Needs improvement", emoji: "🤔" },
   { value: "confused", label: "Confused", emoji: "😕" },
+];
+
+const LANGUAGE_OPTIONS: LanguageOption[] = [
+  { value: "en", label: "English" },
+  { value: "hi", label: "Hindi" },
+  { value: "mr", label: "Marathi" },
+  { value: "ta", label: "Tamil" },
+  { value: "te", label: "Telugu" },
+  { value: "kn", label: "Kannada" },
+  { value: "ml", label: "Malayalam" },
 ];
 
 interface Props {
@@ -80,6 +95,7 @@ export default function SessionFlow({
 }: Props) {
   const [step, setStep] = useState<Step>(alreadySubmitted ? "done" : "welcome");
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageOption["value"]>("en");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -274,7 +290,12 @@ export default function SessionFlow({
       const res = await fetch("/api/session/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, emoji_type: selectedEmoji, video_url: videoUrl }),
+        body: JSON.stringify({
+          token,
+          emoji_type: selectedEmoji,
+          video_url: videoUrl,
+          audio_language: selectedLanguage,
+        }),
       });
 
       if (!res.ok) {
@@ -298,7 +319,7 @@ export default function SessionFlow({
       const res = await fetch("/api/session/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, emoji_type: selectedEmoji }),
+        body: JSON.stringify({ token, emoji_type: selectedEmoji, audio_language: selectedLanguage }),
       });
 
       if (!res.ok) {
@@ -605,6 +626,26 @@ export default function SessionFlow({
               ))}
             </div>
           )}
+
+          <div className="space-y-2">
+            <p className="text-xs font-mono text-stone-400 uppercase tracking-[0.18em]">
+              Spoken language in your video
+            </p>
+            <select
+              value={selectedLanguage}
+              onChange={(e) => setSelectedLanguage(e.target.value as LanguageOption["value"])}
+              className="w-full border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-700"
+            >
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <option key={lang.value} value={lang.value}>
+                  {lang.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-stone-400">
+              This helps us transcribe non-English feedback more accurately.
+            </p>
+          </div>
 
           {/* Camera area */}
           {/* 4:3 on mobile (fullscreen-friendly portrait), 16:9 on desktop */}

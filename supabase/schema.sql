@@ -109,6 +109,7 @@ create table responses (
   attendee_id      uuid not null references attendees(id) on delete cascade,
   session_id       uuid not null references sessions(id) on delete cascade,
   video_url        text,
+  audio_language   text not null default 'en',
   edited_video_url text,
   caption_vtt_url  text,
   wall_video_source text not null default 'raw' check (wall_video_source in ('raw', 'edited')),

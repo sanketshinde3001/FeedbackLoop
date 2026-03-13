@@ -6,10 +6,10 @@ import { sendThankYouEmail } from "@/lib/email";
 import type { EmojiType, SentimentType } from "@/lib/supabase/types";
 
 // POST /api/session/submit
-// Body: { token: string, emoji_type?: string, video_url?: string }
+// Body: { token: string, emoji_type?: string, video_url?: string, audio_language?: string }
 // Uses service-role client — attendees are not Supabase auth users.
 export async function POST(request: NextRequest) {
-  let body: { token?: string; emoji_type?: string; video_url?: string };
+  let body: { token?: string; emoji_type?: string; video_url?: string; audio_language?: string };
 
   try {
     body = await request.json();
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { token, emoji_type, video_url } = body;
+  const { token, emoji_type, video_url, audio_language } = body;
 
   // Validate token format before hitting DB
   if (!token || !/^[a-f0-9]{64}$/.test(token)) {
@@ -25,9 +25,14 @@ export async function POST(request: NextRequest) {
   }
 
   const VALID_EMOJIS = ["loved_it", "helpful", "needs_improvement", "confused"];
+  const VALID_LANGUAGES = ["en", "hi", "mr", "ta", "te", "kn", "ml"];
   if (emoji_type && !VALID_EMOJIS.includes(emoji_type)) {
     return NextResponse.json({ error: "Invalid emoji type" }, { status: 400 });
   }
+  if (audio_language && !VALID_LANGUAGES.includes(audio_language)) {
+    return NextResponse.json({ error: "Invalid audio language" }, { status: 400 });
+  }
+  const selectedLanguage = audio_language && VALID_LANGUAGES.includes(audio_language) ? audio_language : "en";
 
   // Validate video_url if provided — must be an https URL (Cloudinary)
   if (video_url !== undefined && video_url !== null) {
@@ -80,15 +85,24 @@ export async function POST(request: NextRequest) {
   // Get transcript from Deepgram (server-side, non-blocking on failure)
   let transcript: string | null = null;
   if (video_url) {
-    const result = await transcribeVideoUrl(video_url);
+    const result = await transcribeVideoUrl(video_url, selectedLanguage);
     if (result.success && result.transcript) {
       transcript = result.transcript;
     } else if (result.errorType === "no_audio") {
-      // Return user-friendly error for missing audio
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
+      console.warn("[submit] no-audio transcription error", {
+        session_id,
+        attendee_id,
+        selectedLanguage,
+        error: result.error,
+      });
+      // For non-English videos, Deepgram may occasionally return a false no-audio.
+      // Do not block submission; save response and allow manual re-analyze later.
+      if (selectedLanguage === "en") {
+        return NextResponse.json(
+          { error: result.error },
+          { status: 400 }
+        );
+      }
     } else if (result.error) {
       // Log other transcription errors but continue (non-blocking)
       console.warn("[submit] transcription failed:", result.error);
@@ -114,6 +128,7 @@ export async function POST(request: NextRequest) {
       attendee_id,
       session_id,
       video_url: video_url ?? null,
+      audio_language: selectedLanguage,
       transcript,
       sentiment,
       sentiment_score,

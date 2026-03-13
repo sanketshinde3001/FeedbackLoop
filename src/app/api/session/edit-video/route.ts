@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   const { data: response } = await supabase
     .from("responses")
-    .select("id, session_id, attendee_id, video_url")
+    .select("id, session_id, attendee_id, video_url, audio_language")
     .eq("id", responseId)
     .single();
 
@@ -62,7 +62,10 @@ export async function POST(request: NextRequest) {
 
   const attendeeName = attendee?.name || "Attendee";
 
-  const transcription = await transcribeVideoUrlWithWords(response.video_url);
+  const transcription = await transcribeVideoUrlWithWords(
+    response.video_url,
+    response.audio_language || "en"
+  );
   if (!transcription.success) {
     return NextResponse.json(
       { error: transcription.error || "Unable to generate transcript for this video." },

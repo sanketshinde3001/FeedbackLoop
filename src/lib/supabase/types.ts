@@ -88,6 +88,7 @@ export interface Database {
           attendee_id: string;
           session_id: string;
           video_url: string | null;
+          audio_language: string;
           edited_video_url: string | null;
           caption_vtt_url: string | null;
           wall_video_source: "raw" | "edited";
@@ -103,6 +104,7 @@ export interface Database {
           attendee_id: string;
           session_id: string;
           video_url?: string | null;
+          audio_language?: string;
           edited_video_url?: string | null;
           caption_vtt_url?: string | null;
           wall_video_source?: "raw" | "edited";
@@ -118,6 +120,7 @@ export interface Database {
           attendee_id?: string;
           session_id?: string;
           video_url?: string | null;
+          audio_language?: string;
           edited_video_url?: string | null;
           caption_vtt_url?: string | null;
           wall_video_source?: "raw" | "edited";

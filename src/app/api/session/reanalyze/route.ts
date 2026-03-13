@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const { data: response, error: fetchErr } = await supabase
     .from("responses")
-    .select("id, video_url, transcript, session_id")
+    .select("id, video_url, transcript, session_id, audio_language")
     .eq("id", response_id)
     .single();
 
@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
   // Run Deepgram if video exists but no transcript yet
   let transcript = response.transcript;
   let transcriptionErr: string | null = null;
+  const lang = response.audio_language || "en";
   if (!transcript && response.video_url) {
-    const result = await transcribeVideoUrl(response.video_url);
+    const result = await transcribeVideoUrl(response.video_url, lang);
     if (result.success && result.transcript) {
       transcript = result.transcript;
     } else if (result.error) {

@@ -31,6 +31,46 @@ interface DeepgramResponse {
   };
 }
 
+const DEEPGRAM_MODEL = "nova-3";
+
+async function requestDeepgram(
+  apiKey: string,
+  videoUrl: string,
+  opts: { language?: string; withWords?: boolean; detectLanguage?: boolean }
+): Promise<DeepgramResponse | null> {
+  const params = new URLSearchParams({
+    model: DEEPGRAM_MODEL,
+    smart_format: "true",
+    punctuate: "true",
+  });
+
+  if (opts.withWords) {
+    params.set("utterances", "true");
+  }
+
+  if (opts.detectLanguage) {
+    params.set("detect_language", "true");
+  } else if (opts.language) {
+    params.set("language", opts.language);
+  }
+
+  try {
+    const res = await fetch(`https://api.deepgram.com/v1/listen?${params.toString()}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: videoUrl }),
+      signal: AbortSignal.timeout(90_000),
+    });
+
+    return (await res.json()) as DeepgramResponse;
+  } catch {
+    return null;
+  }
+}
+
 function parseDeepgramError(data: DeepgramResponse): Pick<TranscriptionResult, "error" | "errorType"> | null {
   if (!data.error) return null;
 
@@ -57,6 +97,22 @@ function parseWords(data: DeepgramResponse): TranscribedWord[] {
     .map((w) => ({ word: w.word as string, start: w.start as number, end: w.end as number }));
 }
 
+function extractTranscript(data: DeepgramResponse | null): string | null {
+  const t = data?.results?.channels?.[0]?.alternatives?.[0]?.transcript;
+  return typeof t === "string" && t.trim().length > 0 ? t.trim() : null;
+}
+
+function fallbackLanguageFor(lang: string): string | null {
+  const map: Record<string, string> = {
+    mr: "hi",
+    ta: "en",
+    te: "en",
+    kn: "en",
+    ml: "en",
+  };
+  return map[lang] ?? null;
+}
+
 /**
  * Server-side Deepgram transcription via the pre-recorded audio API.
  * Sends a public video URL and returns the transcript string or error details.
@@ -70,7 +126,8 @@ function parseWords(data: DeepgramResponse): TranscribedWord[] {
  *  - { success: false, error: string, errorType: "unknown" } on other errors
  */
 export async function transcribeVideoUrl(
-  videoUrl: string
+  videoUrl: string,
+  language = "en"
 ): Promise<TranscriptionResult> {
   const apiKey = process.env.DEEPGRAM_API_KEY;
   if (!apiKey) {
@@ -82,22 +139,36 @@ export async function transcribeVideoUrl(
   }
 
   try {
-    const res = await fetch(
-      // nova-2: best accuracy/speed balance; smart_format adds punctuation
-      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: videoUrl }),
-        // 90 s covers a 5-minute video; Deepgram is typically much faster
-        signal: AbortSignal.timeout(90_000),
-      }
-    );
+    let data = await requestDeepgram(apiKey, videoUrl, { language });
+    if (!data) {
+      return {
+        success: false,
+        error: "Transcription error: Network error",
+        errorType: "unknown",
+      };
+    }
 
-    const data = (await res.json()) as DeepgramResponse;
+    const directTranscript = extractTranscript(data);
+    if (directTranscript) {
+      return { success: true, transcript: directTranscript };
+    }
+
+    // Fallback 1: auto language detection
+    const detected = await requestDeepgram(apiKey, videoUrl, { detectLanguage: true });
+    const detectedTranscript = extractTranscript(detected);
+    if (detectedTranscript) {
+      return { success: true, transcript: detectedTranscript };
+    }
+
+    // Fallback 2: related fallback language (e.g., mr -> hi)
+    const related = fallbackLanguageFor(language);
+    if (related && related !== language) {
+      const relatedData = await requestDeepgram(apiKey, videoUrl, { language: related });
+      const relatedTranscript = extractTranscript(relatedData);
+      if (relatedTranscript) {
+        return { success: true, transcript: relatedTranscript };
+      }
+    }
 
     const parsedError = parseDeepgramError(data);
     if (parsedError) {
@@ -125,7 +196,8 @@ export async function transcribeVideoUrl(
 }
 
 export async function transcribeVideoUrlWithWords(
-  videoUrl: string
+  videoUrl: string,
+  language = "en"
 ): Promise<TranscriptionResult> {
   const apiKey = process.env.DEEPGRAM_API_KEY;
   if (!apiKey) {
@@ -137,20 +209,42 @@ export async function transcribeVideoUrlWithWords(
   }
 
   try {
-    const res = await fetch(
-      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en&utterances=true&punctuate=true",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Token ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: videoUrl }),
-        signal: AbortSignal.timeout(90_000),
-      }
-    );
+    let data = await requestDeepgram(apiKey, videoUrl, {
+      language,
+      withWords: true,
+    });
+    if (!data) {
+      return {
+        success: false,
+        error: "Transcription error: Network error",
+        errorType: "unknown",
+      };
+    }
 
-    const data = (await res.json()) as DeepgramResponse;
+    const firstTranscript = extractTranscript(data);
+    if (!firstTranscript) {
+      const detected = await requestDeepgram(apiKey, videoUrl, {
+        withWords: true,
+        detectLanguage: true,
+      });
+      const detectedTranscript = extractTranscript(detected);
+      if (detected && detectedTranscript) {
+        data = detected;
+      } else {
+        const related = fallbackLanguageFor(language);
+        if (related && related !== language) {
+          const relatedData = await requestDeepgram(apiKey, videoUrl, {
+            withWords: true,
+            language: related,
+          });
+          const relatedTranscript = extractTranscript(relatedData);
+          if (relatedData && relatedTranscript) {
+            data = relatedData;
+          }
+        }
+      }
+    }
+
     const parsedError = parseDeepgramError(data);
     if (parsedError) {
       return { success: false, ...parsedError };
