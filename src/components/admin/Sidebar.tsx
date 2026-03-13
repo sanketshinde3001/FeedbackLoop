@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Users,
   BarChart2,
+  Code2,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +29,7 @@ const links = [
   { href: "/admin/sessions", label: "Sessions", icon: CalendarDays },
   { href: "/admin/attendees", label: "Attendees", icon: Users },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/admin/embeds", label: "Embeds", icon: Code2 },
 ];
 
 function NavLinks({
