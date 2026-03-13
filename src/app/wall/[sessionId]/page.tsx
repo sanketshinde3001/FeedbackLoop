@@ -71,6 +71,8 @@ export default async function WallPage({ params }: Props) {
     id: string;
     attendee_id: string;
     video_url: string | null;
+    edited_video_url: string | null;
+    wall_video_source: "raw" | "edited";
     transcript: string | null;
     sentiment: string | null;
     attendees: { name: string } | null;
@@ -78,7 +80,7 @@ export default async function WallPage({ params }: Props) {
 
   const { data: rawResponses } = await supabase
     .from("responses")
-    .select("id, attendee_id, video_url, transcript, sentiment, attendees(name)")
+    .select("*, attendees(name)")
     .eq("session_id", sessionId)
     .eq("approved_for_wall", true)
     .order("created_at", { ascending: false });
@@ -137,6 +139,12 @@ export default async function WallPage({ params }: Props) {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {responses.map((r) => {
+              const displayVideoUrl =
+                (r.wall_video_source ?? "raw") === "edited" && r.edited_video_url
+                  ? r.edited_video_url
+                  : r.video_url;
+              const fallbackVideoUrl =
+                (r.wall_video_source ?? "raw") === "edited" ? r.video_url : null;
               const emoji = reactionMap.get(r.attendee_id) ?? null;
               const snippet = r.transcript
                 ? r.transcript.length > 150
@@ -150,10 +158,9 @@ export default async function WallPage({ params }: Props) {
                   className="bg-white border border-stone-200 overflow-hidden flex flex-col group hover:border-orange-400 hover:shadow-md transition-all duration-300"
                 >
                   {/* Video section with play overlay */}
-                  {r.video_url && (
+                  {displayVideoUrl && (
                     <div className="relative bg-stone-900 aspect-video overflow-hidden group">
                       <video
-                        src={r.video_url}
                         autoPlay
                         muted
                         loop
@@ -161,7 +168,10 @@ export default async function WallPage({ params }: Props) {
                         controlsList="nodownload"
                         playsInline
                         className="w-full h-full object-cover"
-                      />
+                      >
+                        <source src={displayVideoUrl} />
+                        {fallbackVideoUrl && <source src={fallbackVideoUrl} />}
+                      </video>
                       {/* Play icon overlay on hover */}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <div className="w-16 h-16 rounded-full bg-orange-700 flex items-center justify-center shadow-lg">

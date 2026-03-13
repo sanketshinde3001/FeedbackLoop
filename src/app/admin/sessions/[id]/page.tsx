@@ -53,7 +53,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
       .order("created_at", { ascending: true }),
     supabase
       .from("responses")
-      .select("id, attendee_id, video_url, transcript, sentiment, sentiment_score, ai_conclusion, approved_for_wall, created_at, attendees(name, email)")
+      .select("*, attendees(name, email)")
       .eq("session_id", id)
       .order("created_at", { ascending: false }),
     supabase
@@ -81,6 +81,9 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
     id: string;
     attendee_id: string;
     video_url: string | null;
+    edited_video_url: string | null;
+    caption_vtt_url: string | null;
+    wall_video_source: "raw" | "edited";
     transcript: string | null;
     sentiment: string | null;
     sentiment_score: number | null;
@@ -98,6 +101,9 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
     id: r.id,
     attendee_id: r.attendee_id,
     video_url: r.video_url,
+    edited_video_url: r.edited_video_url ?? null,
+    caption_vtt_url: r.caption_vtt_url ?? null,
+    wall_video_source: r.wall_video_source ?? "raw",
     transcript: r.transcript,
     sentiment: r.sentiment as ResponseWithAttendee["sentiment"],
     sentiment_score: r.sentiment_score,

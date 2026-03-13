@@ -19,6 +19,9 @@ export type ResponseWithAttendee = {
   id: string;
   attendee_id: string;
   video_url: string | null;
+  edited_video_url: string | null;
+  caption_vtt_url: string | null;
+  wall_video_source: "raw" | "edited";
   transcript: string | null;
   sentiment: "positive" | "neutral" | "negative" | null;
   sentiment_score: number | null;
@@ -46,10 +49,14 @@ const EMOJI_MAP: Record<string, string> = {
 export default function ResponsesPanel({ responses: initial }: { responses: ResponseWithAttendee[] }) {
   const [responses, setResponses] = useState(initial);
   const [reanalyzing, setReanalyzing] = useState<Set<string>>(new Set());
+  const [editing, setEditing]         = useState<Set<string>>(new Set());
   const [approving, setApproving]     = useState<Set<string>>(new Set());
   const [expanded, setExpanded]       = useState<Set<string>>(new Set());
   const [videoOpen, setVideoOpen]     = useState<Set<string>>(new Set());
   const [errors, setErrors]           = useState<Record<string, string>>({});
+  const [previewSource, setPreviewSource] = useState<Record<string, "raw" | "edited">>(() =>
+    Object.fromEntries(initial.map((r) => [r.id, r.edited_video_url ? "edited" : "raw"]))
+  );
 
   async function handleReanalyze(id: string) {
     setReanalyzing((s) => new Set(s).add(id));
@@ -74,18 +81,67 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
   }
 
   async function handleApprove(id: string, current: boolean) {
+    const selectedSource = previewSource[id] ?? "raw";
     setApproving((s) => new Set(s).add(id));
+    setErrors((e) => { const n = { ...e }; delete n[id]; return n; });
     try {
       const res = await fetch("/api/session/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ response_id: id, approved: !current }),
+        body: JSON.stringify({
+          response_id: id,
+          approved: !current,
+          ...(selectedSource === "edited" ? { wall_video_source: "edited" } : {}),
+        }),
       });
+      const data = await res.json() as Record<string, unknown>;
       if (res.ok) {
-        setResponses((prev) => prev.map((r) => r.id === id ? { ...r, approved_for_wall: !current } : r));
+        setResponses((prev) => prev.map((r) =>
+          r.id === id
+            ? { ...r, approved_for_wall: !current, wall_video_source: selectedSource }
+            : r
+        ));
+      } else {
+        setErrors((e) => ({ ...e, [id]: (data.error as string) ?? "Could not update wall selection." }));
       }
+    } catch {
+      setErrors((e) => ({ ...e, [id]: "Network error. Try again." }));
     } finally {
       setApproving((s) => { const n = new Set(s); n.delete(id); return n; });
+    }
+  }
+
+  async function handleEditVideo(id: string) {
+    setEditing((s) => new Set(s).add(id));
+    setErrors((e) => { const n = { ...e }; delete n[id]; return n; });
+    try {
+      const res = await fetch("/api/session/edit-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response_id: id }),
+      });
+
+      const data = await res.json() as Record<string, unknown>;
+      if (!res.ok) {
+        setErrors((e) => ({ ...e, [id]: (data.error as string) ?? "Video edit failed. Try again." }));
+        return;
+      }
+
+      setResponses((prev) => prev.map((r) =>
+        r.id === id
+          ? {
+              ...r,
+              edited_video_url: (data.edited_video_url as string) ?? r.edited_video_url,
+              caption_vtt_url: (data.caption_vtt_url as string) ?? r.caption_vtt_url,
+              transcript: (data.transcript as string) ?? r.transcript,
+            }
+          : r
+      ));
+      setPreviewSource((p) => ({ ...p, [id]: "edited" }));
+    } catch {
+      setErrors((e) => ({ ...e, [id]: "Network error while editing video." }));
+    } finally {
+      setEditing((s) => { const n = new Set(s); n.delete(id); return n; });
     }
   }
 
@@ -117,21 +173,31 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
         const videoShown = videoOpen.has(r.id);
         const sentCfg    = r.sentiment ? SENTIMENT_CONFIG[r.sentiment] : null;
         const canAnalyze = !!(r.video_url || r.transcript);
+        const editPending = editing.has(r.id);
+        const selectedSource = previewSource[r.id] ?? (r.edited_video_url ? "edited" : "raw");
+        const videoSrc = selectedSource === "edited" && r.edited_video_url ? r.edited_video_url : r.video_url;
+        const canUseEdited = !!r.edited_video_url;
+        const fallbackVideoSrc = selectedSource === "edited" ? r.video_url : null;
 
         return (
           <div key={r.id} className="border border-stone-200 overflow-hidden hover:border-stone-300 transition-colors">
 
             {/* Inline video player */}
-            {r.video_url && videoShown && (
+            {videoSrc && videoShown && (
               <div className="bg-gray-950 aspect-video w-full">
                 <video
-                  key={r.video_url}
-                  src={r.video_url}
+                  key={videoSrc}
                   controls
                   autoPlay
                   playsInline
                   className="w-full h-full object-contain"
-                />
+                >
+                  <source src={videoSrc} />
+                  {fallbackVideoSrc && <source src={fallbackVideoSrc} />}
+                  {selectedSource === "edited" && r.caption_vtt_url && (
+                    <track kind="captions" src={r.caption_vtt_url} srcLang="en" label="English" default />
+                  )}
+                </video>
               </div>
             )}
 
@@ -144,6 +210,11 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  {canUseEdited && (
+                    <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-stone-500 bg-stone-100 border border-stone-200 px-2 py-0.5 whitespace-nowrap">
+                      Edited ready
+                    </span>
+                  )}
                   {r.emoji_type && (
                     <span className="text-xs text-stone-500 bg-stone-50 border border-stone-200 px-2 py-0.5 whitespace-nowrap">
                       {EMOJI_MAP[r.emoji_type] ?? r.emoji_type}
@@ -199,7 +270,8 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
               )}
 
               {/* Actions */}
-              <div className="flex items-center gap-2 flex-wrap pt-0.5">
+              <div className="space-y-3 pt-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
                 {r.video_url && (
                   <button
                     onClick={() => setVideoOpen((s) => toggle(s, r.id))}
@@ -210,14 +282,14 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                   </button>
                 )}
 
-                {canAnalyze && (
+                {r.video_url && (
                   <button
-                    onClick={() => handleReanalyze(r.id)}
-                    disabled={analyzing}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                    onClick={() => handleEditVideo(r.id)}
+                    disabled={editPending}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-stone-700 hover:text-stone-900 bg-stone-50 hover:bg-stone-100 border border-stone-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                   >
-                    <RefreshCw size={11} className={analyzing ? "animate-spin" : ""} />
-                    {analyzing ? "Analyzing…" : r.sentiment ? "Re-analyze" : "Analyze now"}
+                    <RefreshCw size={11} className={editPending ? "animate-spin" : ""} />
+                    {editPending ? "Editing…" : canUseEdited ? "Re-edit" : "Edit it"}
                   </button>
                 )}
 
@@ -231,8 +303,62 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                   }`}
                 >
                   {r.approved_for_wall ? <CheckSquare size={11} /> : <Square size={11} />}
-                  {r.approved_for_wall ? "On wall" : "Add to wall"}
+                  {r.approved_for_wall ? `On wall (${r.wall_video_source})` : "Add to wall"}
                 </button>
+                </div>
+
+                <div className="inline-flex items-center gap-2 border border-stone-200 bg-stone-50 px-2.5 py-1.5">
+                  <label className="text-[11px] font-mono uppercase tracking-[0.12em] text-stone-400">
+                    Use on wall
+                  </label>
+                  <select
+                    value={selectedSource}
+                    onChange={(e) =>
+                      setPreviewSource((p) => ({ ...p, [r.id]: e.target.value as "raw" | "edited" }))
+                    }
+                    className="text-xs text-stone-700 bg-transparent outline-none"
+                  >
+                    <option value="raw">Raw video</option>
+                    <option value="edited" disabled={!canUseEdited}>Edited video</option>
+                  </select>
+                </div>
+
+                <details className="text-xs text-stone-500">
+                  <summary className="cursor-pointer select-none hover:text-stone-700">More options</summary>
+                  <div className="mt-2 flex items-center gap-3 flex-wrap">
+                    {canAnalyze && (
+                      <button
+                        onClick={() => handleReanalyze(r.id)}
+                        disabled={analyzing}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                      >
+                        <RefreshCw size={11} className={analyzing ? "animate-spin" : ""} />
+                        {analyzing ? "Analyzing…" : r.sentiment ? "Re-analyze" : "Analyze now"}
+                      </button>
+                    )}
+
+                    {r.video_url && (
+                      <a
+                        href={r.video_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-stone-500 underline underline-offset-2 hover:text-stone-800"
+                      >
+                        Open raw file
+                      </a>
+                    )}
+                    {r.edited_video_url && (
+                      <a
+                        href={r.edited_video_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-orange-700 underline underline-offset-2 hover:text-orange-800"
+                      >
+                        Open edited file
+                      </a>
+                    )}
+                  </div>
+                </details>
               </div>
             </div>
           </div>

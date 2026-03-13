@@ -1,8 +1,60 @@
 export interface TranscriptionResult {
   success: boolean;
   transcript?: string;
+  words?: TranscribedWord[];
   error?: string;
   errorType?: "no_audio" | "auto_parse" | "unknown";
+}
+
+export interface TranscribedWord {
+  word: string;
+  start: number;
+  end: number;
+}
+
+interface DeepgramResponse {
+  results?: {
+    channels?: Array<{
+      alternatives?: Array<{
+        transcript?: string;
+        words?: Array<{
+          word?: string;
+          start?: number;
+          end?: number;
+        }>;
+      }>;
+    }>;
+  };
+  error?: {
+    message?: string;
+    type?: string;
+  };
+}
+
+function parseDeepgramError(data: DeepgramResponse): Pick<TranscriptionResult, "error" | "errorType"> | null {
+  if (!data.error) return null;
+
+  const errorMsg = data.error.message || "Unknown error";
+  const lower = errorMsg.toLowerCase();
+  const isNoAudio =
+    lower.includes("no audio") ||
+    lower.includes("unable to detect") ||
+    lower.includes("no speech") ||
+    data.error.type === "auto_parse";
+
+  return {
+    error: isNoAudio
+      ? "This video doesn't contain any audio. Please upload a video with audio."
+      : `Transcription failed: ${errorMsg}`,
+    errorType: isNoAudio ? "no_audio" : "unknown",
+  };
+}
+
+function parseWords(data: DeepgramResponse): TranscribedWord[] {
+  const words = data?.results?.channels?.[0]?.alternatives?.[0]?.words ?? [];
+  return words
+    .filter((w) => typeof w.word === "string" && typeof w.start === "number" && typeof w.end === "number")
+    .map((w) => ({ word: w.word as string, start: w.start as number, end: w.end as number }));
 }
 
 /**
@@ -45,34 +97,11 @@ export async function transcribeVideoUrl(
       }
     );
 
-    const data = (await res.json()) as {
-      results?: {
-        channels?: Array<{
-          alternatives?: Array<{ transcript?: string }>;
-        }>;
-      };
-      error?: {
-        message?: string;
-        type?: string;
-      };
-    };
+    const data = (await res.json()) as DeepgramResponse;
 
-    // Check for Deepgram errors
-    if (data.error) {
-      const errorMsg = data.error.message || "Unknown error";
-      const isNoAudio =
-        errorMsg.toLowerCase().includes("no audio") ||
-        errorMsg.toLowerCase().includes("unable to detect") ||
-        errorMsg.toLowerCase().includes("no speech") ||
-        data.error.type === "auto_parse";
-
-      return {
-        success: false,
-        error: isNoAudio
-          ? "This video doesn't contain any audio. Please upload a video with audio."
-          : `Transcription failed: ${errorMsg}`,
-        errorType: isNoAudio ? "no_audio" : "unknown",
-      };
+    const parsedError = parseDeepgramError(data);
+    if (parsedError) {
+      return { success: false, ...parsedError };
     }
 
     const transcript = data?.results?.channels?.[0]?.alternatives?.[0]?.transcript;
@@ -85,6 +114,60 @@ export async function transcribeVideoUrl(
     }
 
     return { success: true, transcript };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return {
+      success: false,
+      error: `Transcription error: ${message}`,
+      errorType: "unknown",
+    };
+  }
+}
+
+export async function transcribeVideoUrlWithWords(
+  videoUrl: string
+): Promise<TranscriptionResult> {
+  const apiKey = process.env.DEEPGRAM_API_KEY;
+  if (!apiKey) {
+    return {
+      success: false,
+      error: "Transcription service not configured",
+      errorType: "unknown",
+    };
+  }
+
+  try {
+    const res = await fetch(
+      "https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=en&utterances=true&punctuate=true",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url: videoUrl }),
+        signal: AbortSignal.timeout(90_000),
+      }
+    );
+
+    const data = (await res.json()) as DeepgramResponse;
+    const parsedError = parseDeepgramError(data);
+    if (parsedError) {
+      return { success: false, ...parsedError };
+    }
+
+    const transcript = data?.results?.channels?.[0]?.alternatives?.[0]?.transcript;
+    const words = parseWords(data);
+
+    if (!transcript) {
+      return {
+        success: false,
+        error: "This video doesn't contain any audio. Please upload a video with audio.",
+        errorType: "no_audio",
+      };
+    }
+
+    return { success: true, transcript, words };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return {

@@ -31,7 +31,7 @@ export default function AISummaryPanel({ sessionId }: { sessionId: string }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-xs text-stone-500">
-          Gemini reads all transcripts and writes a short executive summary.
+          Our AI reads all transcripts and writes a short executive summary.
         </p>
         <button
           onClick={generate}

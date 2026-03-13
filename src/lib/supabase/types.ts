@@ -88,6 +88,9 @@ export interface Database {
           attendee_id: string;
           session_id: string;
           video_url: string | null;
+          edited_video_url: string | null;
+          caption_vtt_url: string | null;
+          wall_video_source: "raw" | "edited";
           transcript: string | null;
           sentiment: SentimentType | null;
           sentiment_score: number | null;
@@ -100,6 +103,9 @@ export interface Database {
           attendee_id: string;
           session_id: string;
           video_url?: string | null;
+          edited_video_url?: string | null;
+          caption_vtt_url?: string | null;
+          wall_video_source?: "raw" | "edited";
           transcript?: string | null;
           sentiment?: SentimentType | null;
           sentiment_score?: number | null;
@@ -112,6 +118,9 @@ export interface Database {
           attendee_id?: string;
           session_id?: string;
           video_url?: string | null;
+          edited_video_url?: string | null;
+          caption_vtt_url?: string | null;
+          wall_video_source?: "raw" | "edited";
           transcript?: string | null;
           sentiment?: SentimentType | null;
           sentiment_score?: number | null;
