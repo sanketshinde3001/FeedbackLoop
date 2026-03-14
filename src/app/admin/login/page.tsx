@@ -32,16 +32,16 @@ export default async function LoginPage({ searchParams }: Props) {
       {/* Main */}
       <div className="flex min-h-[calc(100vh-61px)] flex-col sm:flex-row">
         {/* Left — brand panel */}
-        <div className="hidden sm:flex sm:w-[45%] border-r border-stone-300 flex-col justify-between px-14 py-20">
+        <div className="hidden sm:flex sm:w-1/2 border-r border-stone-300 flex-col justify-between px-12 lg:px-20 py-20">
           <div className="space-y-6">
             <p className="font-mono text-[10px] text-stone-400 tracking-[0.25em] uppercase">
               Admin portal
             </p>
             <h1
-              className={`${serif.className} text-[clamp(2.4rem,4vw,4rem)] leading-[1.08] tracking-tight max-w-sm`}
+              className={`${serif.className} text-[clamp(2.4rem,3.6vw,4rem)] leading-[1.08] tracking-tight max-w-sm`}
             >
               {defaultMode === "signup"
-                ? <>Start listening to the people in the room.</>  
+                ? <>Start listening to the people in the room.</>
                 : <>Welcome back.<br /><span className="italic">Your sessions are waiting.</span></>}
             </h1>
           </div>
@@ -54,9 +54,9 @@ export default async function LoginPage({ searchParams }: Props) {
         </div>
 
         {/* Right — form panel */}
-        <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 sm:px-16">
+        <div className="flex sm:w-1/2 flex-col items-center justify-center px-6 py-14 sm:px-12 lg:px-20">
           {/* Mobile-only heading */}
-          <div className="w-full max-w-sm mb-10 sm:hidden">
+          <div className="w-full max-w-md mb-10 sm:hidden">
             <p className="font-mono text-[10px] text-stone-400 tracking-[0.25em] uppercase mb-3">
               Admin portal
             </p>
@@ -65,7 +65,7 @@ export default async function LoginPage({ searchParams }: Props) {
             </h1>
           </div>
 
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-md">
             <AuthForm defaultMode={defaultMode} error={error} success={success} />
           </div>
         </div>

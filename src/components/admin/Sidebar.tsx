@@ -105,7 +105,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`hidden sm:flex flex-col min-h-screen bg-stone-900 text-white shrink-0 border-r border-stone-800 transition-all duration-200
+      className={`hidden sm:flex flex-col sticky top-0 h-screen overflow-y-auto bg-stone-900 text-white shrink-0 border-r border-stone-800 transition-all duration-200
         ${collapsed ? "w-14" : "w-56"}`}
     >
       {/* Brand + collapse toggle */}

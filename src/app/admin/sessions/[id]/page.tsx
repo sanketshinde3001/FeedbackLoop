@@ -11,6 +11,7 @@ import {
   Bell,
   CheckCircle2,
   Clock,
+  Info,
   Mail,
   MessageSquare,
   Sparkles,
@@ -174,23 +175,34 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="border border-stone-200 bg-stone-50 p-4">
-            <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-2">Step 1</p>
-            <p className="text-sm font-medium text-stone-800">Share the general feedback link</p>
-            <p className="text-xs text-stone-500 mt-1">People enter name and email first, then get their own personal recording link.</p>
+        <details className="group border border-stone-200 bg-stone-50">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-stone-700">
+            <span className="inline-flex items-center gap-2">
+              <Info size={14} className="text-stone-500" />
+              Need help?
+            </span>
+            <span className="text-xs text-stone-500 group-open:hidden">Show steps</span>
+            <span className="hidden text-xs text-stone-500 group-open:inline">Hide steps</span>
+          </summary>
+
+          <div className="grid gap-3 border-t border-stone-200 p-4 md:grid-cols-3">
+            <div className="border border-stone-200 bg-white p-4">
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-2">Step 1</p>
+              <p className="text-sm font-medium text-stone-800">Share the general feedback link</p>
+              <p className="text-xs text-stone-500 mt-1">People enter name and email first, then get their own personal recording link.</p>
+            </div>
+            <div className="border border-stone-200 bg-white p-4">
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-2">Step 2</p>
+              <p className="text-sm font-medium text-stone-800">Add attendees or import a CSV</p>
+              <p className="text-xs text-stone-500 mt-1">Use this if you want more control and individual reminder flows.</p>
+            </div>
+            <div className="border border-stone-200 bg-white p-4">
+              <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-2">Step 3</p>
+              <p className="text-sm font-medium text-stone-800">Review responses and publish the best ones</p>
+              <p className="text-xs text-stone-500 mt-1">Analyze, edit, approve for wall, and choose raw or edited video.</p>
+            </div>
           </div>
-          <div className="border border-stone-200 bg-stone-50 p-4">
-            <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-2">Step 2</p>
-            <p className="text-sm font-medium text-stone-800">Add attendees or import a CSV</p>
-            <p className="text-xs text-stone-500 mt-1">Use this if you want more control and individual reminder flows.</p>
-          </div>
-          <div className="border border-stone-200 bg-stone-50 p-4">
-            <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em] mb-2">Step 3</p>
-            <p className="text-sm font-medium text-stone-800">Review responses and publish the best ones</p>
-            <p className="text-xs text-stone-500 mt-1">Analyze, edit, approve for wall, and choose raw or edited video.</p>
-          </div>
-        </div>
+        </details>
       </section>
 
       {error && (
@@ -248,7 +260,7 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
                 </div>
 
                 <div className="space-y-3">
-                  <div className="hidden md:grid grid-cols-[1fr_1fr_auto_auto] gap-4 pb-2 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
+                  <div className="hidden md:grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px_72px] gap-4 pb-2 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
                     <span>Name</span>
                     <span>Email</span>
                     <span>Status</span>
@@ -260,53 +272,50 @@ export default async function SessionDetailPage({ params, searchParams }: Props)
                     return (
                       <div
                         key={a.id}
-                        className="border border-stone-100 p-3 md:border-0 md:p-0 md:grid md:grid-cols-[1fr_1fr_auto_auto] md:gap-4 md:items-center space-y-2 md:space-y-0"
+                        className="border border-stone-100 p-3 md:border-0 md:p-0 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px_72px] md:gap-4 md:items-center space-y-2 md:space-y-0"
                       >
-                        <div className="md:contents">
-                          <div className="flex items-start justify-between gap-2 md:block">
-                            <div>
-                              <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-0.5 md:hidden">Name</p>
-                              <span className="text-sm font-medium text-stone-800 wrap-break-word">{a.name}</span>
-                            </div>
-                            <div className="md:hidden">
-                              {a.submitted_at ? (
-                                <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                                  <CheckCircle2 size={13} /> Done
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1 text-xs text-stone-400">
-                                  <Clock size={13} /> Pending
-                                </span>
-                              )}
-                            </div>
+                        <div className="flex items-start justify-between gap-2 md:block min-w-0">
+                          <div>
+                            <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-0.5 md:hidden">Name</p>
+                            <span className="text-sm font-medium text-stone-800 wrap-break-word">{a.name}</span>
                           </div>
-                          <div className="md:block">
-                            <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-0.5 md:hidden">Email</p>
-                            <span className="text-sm text-stone-500 break-all flex items-center gap-1">
-                              <Mail size={13} className="shrink-0 text-stone-300" />
-                              {a.email}
-                            </span>
-                          </div>
-                          <span className="hidden md:block">
+                          <div className="md:hidden">
                             {a.submitted_at ? (
-                              <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                              <span className="flex items-center gap-1 text-xs text-green-600 font-medium whitespace-nowrap">
                                 <CheckCircle2 size={13} /> Done
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1 text-xs text-stone-400">
+                              <span className="flex items-center gap-1 text-xs text-stone-400 whitespace-nowrap">
                                 <Clock size={13} /> Pending
                               </span>
                             )}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider md:hidden">Link</p>
-                            <span className="flex items-center gap-1">
-                              <span className="text-xs text-stone-300 truncate max-w-32 md:max-w-24 md:hidden md:lg:block">
-                                ...{a.unique_token.slice(-8)}
-                              </span>
-                              <CopyButton text={link} />
-                            </span>
                           </div>
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider mb-0.5 md:hidden">Email</p>
+                          <span className="text-sm text-stone-500 break-all flex items-center gap-1 min-w-0">
+                            <Mail size={13} className="shrink-0 text-stone-300" />
+                            {a.email}
+                          </span>
+                        </div>
+
+                        <span className="hidden md:flex items-center gap-1 text-xs whitespace-nowrap">
+                          {a.submitted_at ? (
+                            <span className="flex items-center gap-1 text-green-600 font-medium whitespace-nowrap">
+                              <CheckCircle2 size={13} /> Done
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-stone-400 whitespace-nowrap">
+                              <Clock size={13} /> Pending
+                            </span>
+                          )}
+                        </span>
+
+                        <div className="flex items-center gap-2 md:justify-self-start whitespace-nowrap">
+                          <p className="text-[9px] font-mono text-stone-400 uppercase tracking-wider md:hidden">Link</p>
+                          <span className="text-xs text-stone-300 truncate max-w-32 md:max-w-16">...{a.unique_token.slice(-8)}</span>
+                          <CopyButton text={link} />
                         </div>
                       </div>
                     );

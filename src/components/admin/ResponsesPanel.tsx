@@ -233,7 +233,7 @@ export default function ResponsesPanel({ responses: initial }: { responses: Resp
                       <span className="capitalize">{r.sentiment}</span>
                       {r.sentiment_score !== null && (
                         <span className="opacity-70">
-                          {r.sentiment_score > 0 ? "+" : ""}{r.sentiment_score.toFixed(2)}
+                          {`${Math.abs(r.sentiment_score * 10).toFixed(1).replace(/\.0$/, "")}/10`}
                         </span>
                       )}
                     </span>

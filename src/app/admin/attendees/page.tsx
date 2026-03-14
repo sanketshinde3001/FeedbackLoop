@@ -94,7 +94,7 @@ export default async function AttendeesPage({
         ) : (
           <>
             {/* Desktop header */}
-            <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_auto_auto] gap-4 px-5 py-3 border-b border-stone-100 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
+            <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr_88px_72px] gap-4 px-5 py-3 border-b border-stone-100 font-mono text-[10px] text-stone-400 uppercase tracking-[0.18em]">
               <span>Name</span>
               <span>Email</span>
               <span>Session</span>
@@ -106,7 +106,7 @@ export default async function AttendeesPage({
               {rows.map((a) => (
                 <div
                   key={a.id}
-                  className="flex flex-col sm:grid sm:grid-cols-[1fr_1fr_1fr_auto_auto] gap-1 sm:gap-4 px-5 py-4 sm:items-center"
+                    className="flex flex-col sm:grid sm:grid-cols-[1fr_1fr_1fr_88px_72px] gap-1 sm:gap-4 px-5 py-4 sm:items-center"
                 >
                   {/* Name */}
                   <p className="text-sm font-medium text-stone-900 truncate">{a.name}</p>
@@ -150,7 +150,7 @@ export default async function AttendeesPage({
 
                   {/* Remind */}
                   {!a.submitted_at ? (
-                    <form action={sendReminderToAttendee.bind(null, a.id)}>
+                      <form action={sendReminderToAttendee.bind(null, a.id)} className="inline-flex items-center">
                       <button
                         type="submit"
                         title="Send reminder email to this attendee"

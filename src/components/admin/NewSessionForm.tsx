@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSession } from "@/app/admin/sessions/actions";
 import { Plus, Trash2, GripVertical, Loader2, Sparkles } from "lucide-react";
@@ -11,11 +11,19 @@ interface Props {
 
 export default function NewSessionForm({ error }: Props) {
   const [questions, setQuestions] = useState<string[]>([""]);
+  const [focusIndexAfterAdd, setFocusIndexAfterAdd] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const questionInputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const router = useRouter();
+
+  useEffect(() => {
+    if (focusIndexAfterAdd === null) return;
+    questionInputRefs.current[focusIndexAfterAdd]?.focus();
+    setFocusIndexAfterAdd(null);
+  }, [questions, focusIndexAfterAdd]);
 
   async function generateQuestions() {
     if (!description.trim() || description.trim().length < 10) {
@@ -60,6 +68,21 @@ export default function NewSessionForm({ error }: Props) {
 
   function updateQuestion(i: number, value: string) {
     setQuestions((prev) => prev.map((q, idx) => (idx === i ? value : q)));
+  }
+
+  function handleQuestionEnter(e: React.KeyboardEvent<HTMLInputElement>, i: number) {
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+    const nextIndex = i + 1;
+
+    if (nextIndex < questions.length) {
+      questionInputRefs.current[nextIndex]?.focus();
+      return;
+    }
+
+    setQuestions((prev) => [...prev, ""]);
+    setFocusIndexAfterAdd(nextIndex);
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -160,6 +183,10 @@ export default function NewSessionForm({ error }: Props) {
                 type="text"
                 value={q}
                 onChange={(e) => updateQuestion(i, e.target.value)}
+                onKeyDown={(e) => handleQuestionEnter(e, i)}
+                ref={(el) => {
+                  questionInputRefs.current[i] = el;
+                }}
                 placeholder={`Question ${i + 1}`}
                 className="flex-1 border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:ring-1 focus:ring-stone-400"
               />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { DM_Serif_Display } from "next/font/google";
 
 const serif = DM_Serif_Display({
@@ -134,20 +135,37 @@ function Field({
   placeholder?: string;
   hint?: string;
 }) {
+  const isPassword = type === "password";
+  const [show, setShow] = useState(false);
+  const inputType = isPassword ? (show ? "text" : "password") : type;
+
   return (
     <div>
       <label htmlFor={id} className="block font-mono text-[10px] text-stone-500 uppercase tracking-[0.18em] mb-2">
         {label}
       </label>
-      <input
-        id={id}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required
-        placeholder={placeholder}
-        className="w-full border border-stone-300 bg-stone-50 px-3.5 py-3 text-sm text-stone-900 placeholder-stone-300 focus:outline-none focus:border-stone-700 focus:bg-white transition-colors"
-      />
+      <div className="relative">
+        <input
+          id={id}
+          name={name}
+          type={inputType}
+          autoComplete={autoComplete}
+          required
+          placeholder={placeholder}
+          className={`w-full border border-stone-300 bg-stone-50 px-3.5 py-3 text-sm text-stone-900 placeholder-stone-300 focus:outline-none focus:border-stone-700 focus:bg-white transition-colors${isPassword ? " pr-11" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            tabIndex={-1}
+            aria-label={show ? "Hide password" : "Show password"}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition-colors"
+          >
+            {show ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
       {hint && <p className="mt-1.5 font-mono text-[10px] text-stone-400 tracking-wide">{hint}</p>}
     </div>
   );

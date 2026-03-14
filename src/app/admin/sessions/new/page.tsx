@@ -18,7 +18,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
   const { error } = await searchParams;
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="w-full max-w-7xl mx-auto space-y-8">
       <div>
         <p className="font-mono text-[10px] text-stone-400 uppercase tracking-[0.25em] mb-2">Sessions</p>
         <h1 className="text-3xl font-bold text-stone-900 tracking-tight">New Session</h1>
@@ -27,7 +27,7 @@ export default async function NewSessionPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <div className="bg-white border border-stone-200 p-6 sm:p-8">
+      <div className="w-full max-w-2xl bg-white border border-stone-200 p-6 sm:p-8">
         <NewSessionForm error={error} />
       </div>
     </div>
