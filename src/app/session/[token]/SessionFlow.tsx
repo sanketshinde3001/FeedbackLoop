@@ -437,7 +437,7 @@ export default function SessionFlow({
       const pcm = new Uint8Array(2048);
       const threshold = 0.02;
       const minSpeechMs = 450;
-      const silenceToStopMs = 1600;
+      const silenceToStopMs = 3000;
       let speechStartedAt = 0;
       let lastLoudAt = 0;
 
