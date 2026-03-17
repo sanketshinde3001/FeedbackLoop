@@ -63,6 +63,10 @@ interface InterviewPair {
   answer: string;
 }
 
+interface InterviewClosingResponse {
+  closingText?: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -121,6 +125,7 @@ export default function SessionFlow({
   const [interviewIndex, setInterviewIndex] = useState(0);
   const [isAnswerRecording, setIsAnswerRecording] = useState(false);
   const [qaPairs, setQaPairs] = useState<InterviewPair[]>([]);
+  const [currentPrompt, setCurrentPrompt] = useState("");
   const [closingLine, setClosingLine] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -136,6 +141,7 @@ export default function SessionFlow({
   const audioContextRef = useRef<AudioContext | null>(null);
   const mixedDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const currentQuestionAudioRef = useRef<HTMLAudioElement | null>(null);
+  const questionAudioCacheRef = useRef<Map<number, Promise<string | null>>>(new Map());
 
   // Cleanup on unmount — stop camera tracks and revoke blob URL
   useEffect(() => {
@@ -260,6 +266,11 @@ export default function SessionFlow({
     const streamToRecord = recordStream ?? streamRef.current;
     if (!streamToRecord || !cameraReady) return;
 
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
     chunksRef.current = [];
     blobRef.current = null;
     const mimeType = getBestMimeType();
@@ -315,10 +326,43 @@ export default function SessionFlow({
     }
   }
 
-  async function playInterviewQuestion(question: string): Promise<void> {
-    const audioDataUrl = await fetchQuestionAudioDataUrl(question);
+  async function preloadInitialQuestionAudio(): Promise<void> {
+    if (!questions.length) return;
+    ensureQuestionAudioPrefetch(0);
+    ensureQuestionAudioPrefetch(1);
+    const tasks = [
+      questionAudioCacheRef.current.get(0),
+      questionAudioCacheRef.current.get(1),
+    ].filter((p): p is Promise<string | null> => Boolean(p));
+    await Promise.allSettled(tasks);
+  }
+
+  async function generateInterviewClosingLine(pairs: InterviewPair[]): Promise<string | null> {
+    try {
+      const res = await fetch("/api/session/interview-closing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          attendeeName,
+          sessionTitle,
+          qa_pairs: pairs,
+        }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as InterviewClosingResponse;
+      const text = data.closingText?.trim();
+      return text || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function playInterviewText(text: string, preloadedAudioDataUrl?: string | null, isClosing = false): Promise<void> {
+    const audioDataUrl = preloadedAudioDataUrl ?? (await fetchQuestionAudioDataUrl(text));
     if (!audioDataUrl) {
-      await new Promise((r) => setTimeout(r, 1200));
+      const fallbackWait = isClosing ? 3500 : 900;
+      if (isClosing) console.warn("[closing] TTS generation failed, waiting fallback duration");
+      await new Promise((r) => setTimeout(r, fallbackWait));
       return;
     }
 
@@ -327,6 +371,7 @@ export default function SessionFlow({
     await new Promise<void>((resolve) => {
       const audio = new Audio(audioDataUrl);
       currentQuestionAudioRef.current = audio;
+      if (isClosing) console.log("[closing] TTS audio created, starting playback");
 
       let sourceNode: MediaElementAudioSourceNode | null = null;
       if (audioContextRef.current && mixedDestinationRef.current) {
@@ -340,6 +385,7 @@ export default function SessionFlow({
       }
 
       const done = () => {
+        if (isClosing) console.log("[closing] TTS playback finished");
         sourceNode?.disconnect();
         currentQuestionAudioRef.current = null;
         resolve();
@@ -349,6 +395,26 @@ export default function SessionFlow({
       audio.onerror = done;
       audio.play().catch(done);
     });
+  }
+
+  function ensureQuestionAudioPrefetch(index: number) {
+    if (index < 0 || index >= questions.length) return;
+    if (questionAudioCacheRef.current.has(index)) return;
+    questionAudioCacheRef.current.set(index, fetchQuestionAudioDataUrl(questions[index]));
+  }
+
+  async function playInterviewQuestion(index: number): Promise<void> {
+    ensureQuestionAudioPrefetch(index);
+    ensureQuestionAudioPrefetch(index + 1);
+    ensureQuestionAudioPrefetch(index + 2);
+
+    const audioDataUrl = (await questionAudioCacheRef.current.get(index)) ?? null;
+    const text = questions[index] ?? "";
+    if (text) {
+      await playInterviewText(text, audioDataUrl);
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 1200));
   }
 
   async function captureSingleAnswer(maxMs = 45_000): Promise<Blob | null> {
@@ -507,7 +573,9 @@ export default function SessionFlow({
     setInterviewPhase("preparing");
     setSubmitError(null);
     setQaPairs([]);
+    setCurrentPrompt("");
     setInterviewIndex(0);
+    questionAudioCacheRef.current.clear();
 
     try {
       if (!streamRef.current) {
@@ -518,30 +586,60 @@ export default function SessionFlow({
         throw new Error("Could not access camera and microphone.");
       }
 
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setRecordingTime(0);
+
       const mixedStream = await buildInterviewRecordingStream(streamRef.current);
+      await preloadInitialQuestionAudio();
       startRecording(mixedStream);
 
       const pairs: InterviewPair[] = [];
+      const pendingPairs: Array<InterviewPair | null> = Array.from({ length: questions.length }, () => null);
+      const transcriptionTasks: Promise<void>[] = [];
       for (let i = 0; i < questions.length; i += 1) {
         setInterviewIndex(i);
         setInterviewPhase("asking");
-        await playInterviewQuestion(questions[i]);
+        setCurrentPrompt(questions[i] ?? "");
+        await playInterviewQuestion(i);
 
         setInterviewPhase("listening");
         const answerBlob = await captureSingleAnswer();
 
-        setInterviewPhase("transcribing");
-        const answer = answerBlob ? await transcribeAnswer(answerBlob) : "";
+        const pairTask = (async () => {
+          const answer = answerBlob ? await transcribeAnswer(answerBlob) : "";
+          const pair = {
+            question: questions[i],
+            answer: answer || "No clear answer captured.",
+          };
+          pendingPairs[i] = pair;
+          setQaPairs(pendingPairs.filter((p): p is InterviewPair => p !== null));
+        })();
+        transcriptionTasks.push(pairTask);
 
-        const pair = {
-          question: questions[i],
-          answer: answer || "No clear answer captured.",
-        };
-        pairs.push(pair);
-        setQaPairs([...pairs]);
-
-        await new Promise((r) => setTimeout(r, 600));
+        if (i < questions.length - 1) {
+          await new Promise((r) => setTimeout(r, 300));
+        }
       }
+
+      setInterviewPhase("transcribing");
+      await Promise.all(transcriptionTasks);
+      for (let i = 0; i < pendingPairs.length; i += 1) {
+        const pair = pendingPairs[i];
+        if (pair) pairs.push(pair);
+      }
+      setQaPairs(pairs);
+
+      const spokenClosing = await generateInterviewClosingLine(pairs);
+      const fallbackClosing = `Thanks ${attendeeName}, your feedback for ${sessionTitle} is complete. We appreciate your time.`;
+      const finalClosing = spokenClosing || fallbackClosing;
+      setClosingLine(finalClosing);
+      setCurrentPrompt(finalClosing);
+
+      setInterviewPhase("asking");
+      await playInterviewText(finalClosing, undefined, true);
 
       setInterviewPhase("complete");
       stopRecording();
@@ -553,6 +651,7 @@ export default function SessionFlow({
       interviewRunningRef.current = false;
       setIsAnswerRecording(false);
       stopAnswerRef.current = null;
+      questionAudioCacheRef.current.clear();
     }
   }
 
@@ -566,6 +665,8 @@ export default function SessionFlow({
     setInterviewPhase("idle");
     setInterviewIndex(0);
     setQaPairs([]);
+    setCurrentPrompt("");
+    questionAudioCacheRef.current.clear();
     setStep("recorder");
   }
 
@@ -926,23 +1027,12 @@ export default function SessionFlow({
               Step 2 of 2
             </p>
             <h2 className="text-xl font-bold text-stone-900 mt-1">
-              AI interview recording
+              Feedback Recording
             </h2>
             <p className="text-sm text-stone-500 mt-1">
               We will ask each question one by one, record your answer, then move to the next.
             </p>
           </div>
-
-          {/* Questions reference */}
-          {questions.length > 0 && (
-            <div className="bg-stone-50 border border-stone-100 px-4 py-3 space-y-1">
-              {questions.map((q, i) => (
-                <p key={i} className="text-xs text-stone-600">
-                  <span className="font-bold text-orange-600">{i + 1}.</span> {q}
-                </p>
-              ))}
-            </div>
-          )}
 
           <div className="space-y-2">
             <p className="text-xs font-mono text-stone-400 uppercase tracking-[0.18em]">
@@ -964,21 +1054,13 @@ export default function SessionFlow({
             </p>
           </div>
 
-          <div className="border border-stone-200 bg-stone-50 px-4 py-3 space-y-2">
+          <div className="border border-stone-200 bg-stone-50 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-mono uppercase tracking-[0.18em] text-stone-500">Interview progress</p>
+              <p className="text-xs font-mono uppercase tracking-[0.18em] text-stone-500">Progress</p>
               <p className="text-xs text-stone-500">
-                {Math.min(interviewIndex + (interviewPhase === "complete" ? 1 : 0), questions.length)} / {questions.length}
+                {Math.min(interviewIndex + 1, questions.length)} / {questions.length}
               </p>
             </div>
-            <p className="text-sm text-stone-700">
-              {interviewPhase === "idle" && "Press Start interview when you are ready."}
-              {interviewPhase === "preparing" && "Preparing camera and recording..."}
-              {interviewPhase === "asking" && `AI is asking: ${questions[interviewIndex] ?? ""}`}
-              {interviewPhase === "listening" && "Recording your answer... we auto-detect silence, or you can tap Stop Answer anytime."}
-              {interviewPhase === "transcribing" && "Transcribing your answer, next question coming up..."}
-              {interviewPhase === "complete" && "Interview complete. Opening preview..."}
-            </p>
           </div>
 
           {/* Camera area */}
@@ -1014,6 +1096,15 @@ export default function SessionFlow({
               </div>
             )}
 
+            {/* Current question overlay during recording */}
+            {interviewStarted && currentPrompt && (
+              <div className="absolute inset-x-0 top-0 bg-black/60 px-4 py-4 flex items-center justify-center">
+                <p className="text-white text-sm font-medium text-center leading-relaxed">
+                  {currentPrompt}
+                </p>
+              </div>
+            )}
+
             {/* Recording indicator */}
             {isRecording && (
               <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 rounded-full px-3 py-1.5">
@@ -1042,7 +1133,7 @@ export default function SessionFlow({
               className="flex-1 min-w-48 flex items-center justify-center gap-2 bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors touch-manipulation"
             >
               <Video size={16} />
-              {interviewStarted ? "Interview running" : "Start Interview"}
+              {interviewStarted ? "Feedback running" : "Start Feedback"}
             </button>
 
             {isAnswerRecording && (
@@ -1055,18 +1146,6 @@ export default function SessionFlow({
               </button>
             )}
           </div>
-
-          {qaPairs.length > 0 && (
-            <div className="border border-stone-200 bg-white px-4 py-3 space-y-2 max-h-40 overflow-y-auto">
-              <p className="text-xs font-mono uppercase tracking-[0.16em] text-stone-400">Captured answers</p>
-              {qaPairs.map((pair, idx) => (
-                <div key={`${pair.question}-${idx}`} className="text-xs text-stone-600 leading-relaxed">
-                  <p className="font-medium text-stone-700">Q{idx + 1}: {pair.question}</p>
-                  <p>A: {pair.answer}</p>
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Permission note */}
           {!cameraReady && !cameraError && (
