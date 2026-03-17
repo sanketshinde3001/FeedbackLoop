@@ -4,6 +4,11 @@ export type GeminiResult = {
   conclusion: string;
 };
 
+export type InterviewQAPair = {
+  question: string;
+  answer: string;
+};
+
 const MODEL = "gemini-3.1-flash-lite-preview";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -78,4 +83,63 @@ export async function analyzeTranscript(transcript: string | null): Promise<Gemi
     }
   }
   return null;
+}
+
+export async function generateInterviewClosing(params: {
+  attendeeName: string;
+  sessionTitle: string;
+  qaPairs: InterviewQAPair[];
+}): Promise<string | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || !params.qaPairs.length) return null;
+
+  const compactPairs = params.qaPairs
+    .filter((p) => p.question.trim() && p.answer.trim())
+    .slice(0, 8)
+    .map((p, i) => `${i + 1}. Q: ${p.question.trim()}\nA: ${p.answer.trim()}`)
+    .join("\n\n");
+
+  if (!compactPairs) return null;
+
+  const prompt = `Create one warm, personalized closing line for a feedback interview.
+Name: ${params.attendeeName}
+Session: ${params.sessionTitle}
+
+Interview transcript pairs:
+${compactPairs}
+
+Rules:
+- 1 sentence only
+- Mention one specific idea from the attendee's answers
+- End with a thank-you tone
+- Plain text only
+- Max 28 words`;
+
+  try {
+    const res = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 80,
+        },
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!text) return null;
+
+    return text.replace(/\s+/g, " ").slice(0, 220);
+  } catch {
+    return null;
+  }
 }

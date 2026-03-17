@@ -71,6 +71,41 @@ async function requestDeepgram(
   }
 }
 
+async function requestDeepgramBuffer(
+  apiKey: string,
+  audioBuffer: ArrayBuffer,
+  mimeType: string,
+  opts: { language?: string; detectLanguage?: boolean }
+): Promise<DeepgramResponse | null> {
+  const params = new URLSearchParams({
+    model: DEEPGRAM_MODEL,
+    smart_format: "true",
+    punctuate: "true",
+  });
+
+  if (opts.detectLanguage) {
+    params.set("detect_language", "true");
+  } else if (opts.language) {
+    params.set("language", opts.language);
+  }
+
+  try {
+    const res = await fetch(`https://api.deepgram.com/v1/listen?${params.toString()}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        "Content-Type": mimeType || "audio/webm",
+      },
+      body: audioBuffer,
+      signal: AbortSignal.timeout(45_000),
+    });
+
+    return (await res.json()) as DeepgramResponse;
+  } catch {
+    return null;
+  }
+}
+
 function parseDeepgramError(data: DeepgramResponse): Pick<TranscriptionResult, "error" | "errorType"> | null {
   if (!data.error) return null;
 
@@ -270,4 +305,68 @@ export async function transcribeVideoUrlWithWords(
       errorType: "unknown",
     };
   }
+}
+
+export async function transcribeAudioBuffer(
+  audioBuffer: ArrayBuffer,
+  mimeType = "audio/webm",
+  language = "en"
+): Promise<TranscriptionResult> {
+  const apiKey = process.env.DEEPGRAM_API_KEY;
+  if (!apiKey) {
+    return {
+      success: false,
+      error: "Transcription service not configured",
+      errorType: "unknown",
+    };
+  }
+
+  const MAX_ATTEMPTS = 3;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    // Exponential back-off: 0 ms, 800 ms, 1600 ms
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+
+    try {
+      let data = await requestDeepgramBuffer(apiKey, audioBuffer, mimeType, { language });
+      if (!data) continue; // network error — retry
+
+      let transcript = extractTranscript(data);
+
+      // Fallback: auto language detection
+      if (!transcript) {
+        const detected = await requestDeepgramBuffer(apiKey, audioBuffer, mimeType, {
+          detectLanguage: true,
+        });
+        const detectedTranscript = extractTranscript(detected);
+        if (detected && detectedTranscript) {
+          data = detected;
+          transcript = detectedTranscript;
+        }
+      }
+
+      if (transcript) {
+        return { success: true, transcript };
+      }
+
+      // If Deepgram returned a hard error (e.g. no audio), don't retry — fail fast
+      const parsedError = parseDeepgramError(data);
+      if (parsedError?.errorType === "no_audio") {
+        return { success: false, ...parsedError };
+      }
+
+      // Otherwise loop → retry
+    } catch {
+      // Transient error — retry on next iteration
+    }
+  }
+
+  // All attempts exhausted
+  return {
+    success: false,
+    error: "Could not transcribe this answer after multiple attempts.",
+    errorType: "unknown",
+  };
 }

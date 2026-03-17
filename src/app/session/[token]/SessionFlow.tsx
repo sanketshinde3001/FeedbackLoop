@@ -58,6 +58,11 @@ interface Props {
   alreadySubmitted: boolean;
 }
 
+interface InterviewPair {
+  question: string;
+  answer: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -74,6 +79,12 @@ function getBestMimeType(): string {
     "video/mp4",
   ];
   return types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "video/webm";
+}
+
+function getBestAudioMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "audio/webm";
+  const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  return types.find((t) => MediaRecorder.isTypeSupported(t)) ?? "audio/webm";
 }
 
 // ─── Wrapper card ─────────────────────────────────────────────────────────────
@@ -105,6 +116,12 @@ export default function SessionFlow({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [introText, setIntroText] = useState<string | null>(null);
   const [introLoading, setIntroLoading] = useState(false);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [interviewPhase, setInterviewPhase] = useState<"idle" | "preparing" | "asking" | "listening" | "transcribing" | "complete">("idle");
+  const [interviewIndex, setInterviewIndex] = useState(0);
+  const [isAnswerRecording, setIsAnswerRecording] = useState(false);
+  const [qaPairs, setQaPairs] = useState<InterviewPair[]>([]);
+  const [closingLine, setClosingLine] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
@@ -114,6 +131,11 @@ export default function SessionFlow({
   const blobRef = useRef<Blob | null>(null); // actual blob kept for Cloudinary upload
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const interviewRunningRef = useRef(false);
+  const stopAnswerRef = useRef<(() => void) | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mixedDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const currentQuestionAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cleanup on unmount — stop camera tracks and revoke blob URL
   useEffect(() => {
@@ -122,6 +144,8 @@ export default function SessionFlow({
       if (timerRef.current) clearInterval(timerRef.current);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       audioRef.current?.pause();
+      currentQuestionAudioRef.current?.pause();
+      audioContextRef.current?.close().catch(() => null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -160,6 +184,28 @@ export default function SessionFlow({
   function stopStream() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    mixedDestinationRef.current = null;
+    audioContextRef.current?.close().catch(() => null);
+    audioContextRef.current = null;
+  }
+
+  async function buildInterviewRecordingStream(baseStream: MediaStream): Promise<MediaStream> {
+    const audioTrack = baseStream.getAudioTracks()[0];
+    const videoTrack = baseStream.getVideoTracks()[0];
+    if (!audioTrack || !videoTrack) throw new Error("Camera and microphone are required.");
+
+    const audioContext = new AudioContext();
+    const destination = audioContext.createMediaStreamDestination();
+    const micSource = audioContext.createMediaStreamSource(new MediaStream([audioTrack]));
+    micSource.connect(destination);
+
+    audioContextRef.current = audioContext;
+    mixedDestinationRef.current = destination;
+
+    const combined = new MediaStream();
+    combined.addTrack(videoTrack);
+    destination.stream.getAudioTracks().forEach((t) => combined.addTrack(t));
+    return combined;
   }
 
   // ── Camera ────────────────────────────────────────────────────────────────
@@ -210,13 +256,14 @@ export default function SessionFlow({
   }, [step, previewUrl]);
 
   // ── Recording ─────────────────────────────────────────────────────────────
-  function startRecording() {
-    if (!streamRef.current || !cameraReady) return;
+  function startRecording(recordStream?: MediaStream) {
+    const streamToRecord = recordStream ?? streamRef.current;
+    if (!streamToRecord || !cameraReady) return;
 
     chunksRef.current = [];
     blobRef.current = null;
     const mimeType = getBestMimeType();
-    const recorder = new MediaRecorder(streamRef.current, { mimeType });
+    const recorder = new MediaRecorder(streamToRecord, { mimeType });
 
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -253,12 +300,272 @@ export default function SessionFlow({
     setIsRecording(false);
   }
 
+  async function fetchQuestionAudioDataUrl(text: string): Promise<string | null> {
+    try {
+      const res = await fetch("/api/session/question-tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { audioDataUrl?: string };
+      return data.audioDataUrl ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function playInterviewQuestion(question: string): Promise<void> {
+    const audioDataUrl = await fetchQuestionAudioDataUrl(question);
+    if (!audioDataUrl) {
+      await new Promise((r) => setTimeout(r, 1200));
+      return;
+    }
+
+    await audioContextRef.current?.resume().catch(() => null);
+
+    await new Promise<void>((resolve) => {
+      const audio = new Audio(audioDataUrl);
+      currentQuestionAudioRef.current = audio;
+
+      let sourceNode: MediaElementAudioSourceNode | null = null;
+      if (audioContextRef.current && mixedDestinationRef.current) {
+        try {
+          sourceNode = audioContextRef.current.createMediaElementSource(audio);
+          sourceNode.connect(mixedDestinationRef.current);
+          sourceNode.connect(audioContextRef.current.destination);
+        } catch {
+          sourceNode = null;
+        }
+      }
+
+      const done = () => {
+        sourceNode?.disconnect();
+        currentQuestionAudioRef.current = null;
+        resolve();
+      };
+
+      audio.onended = done;
+      audio.onerror = done;
+      audio.play().catch(done);
+    });
+  }
+
+  async function captureSingleAnswer(maxMs = 45_000): Promise<Blob | null> {
+    if (!streamRef.current) return null;
+    const micTrack = streamRef.current.getAudioTracks()[0];
+    if (!micTrack) return null;
+
+    const answerStream = new MediaStream([micTrack.clone()]);
+    const chunks: Blob[] = [];
+    const mimeType = getBestAudioMimeType();
+
+    return new Promise<Blob | null>((resolve) => {
+      const recorder = new MediaRecorder(answerStream, { mimeType });
+      let finished = false;
+      let silenceRaf: number | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let vadContext: AudioContext | null = null;
+      let vadSource: MediaStreamAudioSourceNode | null = null;
+      let analyser: AnalyserNode | null = null;
+      const pcm = new Uint8Array(2048);
+      const threshold = 0.02;
+      const minSpeechMs = 450;
+      const silenceToStopMs = 1600;
+      let speechStartedAt = 0;
+      let lastLoudAt = 0;
+
+      const cleanupVad = () => {
+        if (silenceRaf !== null) cancelAnimationFrame(silenceRaf);
+        silenceRaf = null;
+        analyser?.disconnect();
+        vadSource?.disconnect();
+        analyser = null;
+        vadSource = null;
+        vadContext?.close().catch(() => null);
+        vadContext = null;
+      };
+
+      const finalize = () => {
+        if (finished) return;
+        finished = true;
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = null;
+        cleanupVad();
+        setIsAnswerRecording(false);
+        stopAnswerRef.current = null;
+        answerStream.getTracks().forEach((t) => t.stop());
+      };
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = chunks.length ? new Blob(chunks, { type: mimeType }) : null;
+        finalize();
+        resolve(blob);
+      };
+
+      recorder.onerror = () => {
+        finalize();
+        resolve(null);
+      };
+
+      recorder.start(250);
+      setIsAnswerRecording(true);
+
+      stopAnswerRef.current = () => {
+        if (recorder.state !== "inactive") recorder.stop();
+      };
+
+      timeoutId = setTimeout(() => {
+        if (recorder.state !== "inactive") recorder.stop();
+      }, maxMs);
+
+      try {
+        vadContext = new AudioContext();
+        vadSource = vadContext.createMediaStreamSource(answerStream);
+        analyser = vadContext.createAnalyser();
+        analyser.fftSize = 2048;
+        analyser.smoothingTimeConstant = 0.2;
+        vadSource.connect(analyser);
+
+        const watchSilence = () => {
+          if (!analyser || recorder.state === "inactive") return;
+
+          analyser.getByteTimeDomainData(pcm);
+          let sum = 0;
+          for (let i = 0; i < pcm.length; i += 1) {
+            const v = (pcm[i] - 128) / 128;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / pcm.length);
+          const now = performance.now();
+
+          if (rms > threshold) {
+            if (!speechStartedAt) speechStartedAt = now;
+            lastLoudAt = now;
+          }
+
+          const hasSpoken = speechStartedAt > 0 && now - speechStartedAt >= minSpeechMs;
+          const longSilenceAfterSpeech = hasSpoken && lastLoudAt > 0 && now - lastLoudAt >= silenceToStopMs;
+
+          if (longSilenceAfterSpeech) {
+            if (recorder.state === "recording") recorder.stop();
+            return;
+          }
+
+          silenceRaf = requestAnimationFrame(watchSilence);
+        };
+
+        silenceRaf = requestAnimationFrame(watchSilence);
+      } catch {
+        // If VAD setup fails, fallback still works via manual stop + max timeout.
+      }
+    });
+  }
+
+  async function transcribeAnswer(answerBlob: Blob): Promise<string> {
+    const MAX_CLIENT_RETRIES = 2;
+    for (let attempt = 0; attempt <= MAX_CLIENT_RETRIES; attempt += 1) {
+      if (attempt > 0) {
+        // Back-off before retry: 1 s, 2 s — invisible to user
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+      }
+      try {
+        const form = new FormData();
+        form.append("audio", answerBlob, "answer.webm");
+        form.append("language", selectedLanguage);
+
+        const res = await fetch("/api/session/transcribe-answer", {
+          method: "POST",
+          body: form,
+        });
+
+        if (res.ok) {
+          const data = (await res.json()) as { transcript?: string };
+          const text = (data.transcript ?? "").trim();
+          if (text) return text; // success
+          // Empty transcript on 200 — treat as soft failure, retry
+        }
+        // HTTP error or empty → retry on next iteration
+      } catch {
+        // Network / fetch error → retry
+      }
+    }
+    // All client-side attempts exhausted — interview continues silently
+    console.warn("[interview] transcription failed for one answer after retries");
+    return "";
+  }
+
+  async function runInterviewFlow() {
+    if (interviewRunningRef.current) return;
+
+    interviewRunningRef.current = true;
+    setInterviewStarted(true);
+    setInterviewPhase("preparing");
+    setSubmitError(null);
+    setQaPairs([]);
+    setInterviewIndex(0);
+
+    try {
+      if (!streamRef.current) {
+        await startCamera();
+      }
+
+      if (!streamRef.current) {
+        throw new Error("Could not access camera and microphone.");
+      }
+
+      const mixedStream = await buildInterviewRecordingStream(streamRef.current);
+      startRecording(mixedStream);
+
+      const pairs: InterviewPair[] = [];
+      for (let i = 0; i < questions.length; i += 1) {
+        setInterviewIndex(i);
+        setInterviewPhase("asking");
+        await playInterviewQuestion(questions[i]);
+
+        setInterviewPhase("listening");
+        const answerBlob = await captureSingleAnswer();
+
+        setInterviewPhase("transcribing");
+        const answer = answerBlob ? await transcribeAnswer(answerBlob) : "";
+
+        const pair = {
+          question: questions[i],
+          answer: answer || "No clear answer captured.",
+        };
+        pairs.push(pair);
+        setQaPairs([...pairs]);
+
+        await new Promise((r) => setTimeout(r, 600));
+      }
+
+      setInterviewPhase("complete");
+      stopRecording();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Interview flow failed. Please try again.");
+      setInterviewPhase("idle");
+      if (isRecording) stopRecording();
+    } finally {
+      interviewRunningRef.current = false;
+      setIsAnswerRecording(false);
+      stopAnswerRef.current = null;
+    }
+  }
+
   // ── Re-record ─────────────────────────────────────────────────────────────
   function handleReRecord() {
     if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }
     blobRef.current = null;
     setRecordingTime(0);
     setSubmitError(null);
+    setInterviewStarted(false);
+    setInterviewPhase("idle");
+    setInterviewIndex(0);
+    setQaPairs([]);
     setStep("recorder");
   }
 
@@ -295,13 +602,16 @@ export default function SessionFlow({
           emoji_type: selectedEmoji,
           video_url: videoUrl,
           audio_language: selectedLanguage,
+          qa_pairs: qaPairs,
         }),
       });
 
+      const data = (await res.json()) as { error?: string; closing_line?: string };
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error ?? "Submission failed. Please try again.");
       }
+
+      setClosingLine(data.closing_line ?? null);
 
       setStep("done");
     } catch (err) {
@@ -322,10 +632,12 @@ export default function SessionFlow({
         body: JSON.stringify({ token, emoji_type: selectedEmoji, audio_language: selectedLanguage }),
       });
 
+      const data = (await res.json()) as { error?: string; closing_line?: string };
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error ?? "Submission failed.");
       }
+
+      setClosingLine(data.closing_line ?? null);
 
       setStep("done");
     } catch (err) {
@@ -382,6 +694,11 @@ export default function SessionFlow({
               ? "You've already submitted your feedback for this session."
               : "Your feedback has been recorded. We really appreciate you taking the time!"}
           </p>
+          {closingLine && (
+            <p className="text-sm text-stone-700 bg-stone-50 border border-stone-200 px-4 py-3 leading-relaxed">
+              {closingLine}
+            </p>
+          )}
           {selectedEmoji && (
             <p className="text-3xl mt-2">
               {EMOJI_OPTIONS.find((e) => e.value === selectedEmoji)?.emoji}
@@ -609,10 +926,10 @@ export default function SessionFlow({
               Step 2 of 2
             </p>
             <h2 className="text-xl font-bold text-stone-900 mt-1">
-              Record your feedback
+              AI interview recording
             </h2>
             <p className="text-sm text-stone-500 mt-1">
-              Max 5 minutes. Answer as many questions as you like.
+              We will ask each question one by one, record your answer, then move to the next.
             </p>
           </div>
 
@@ -644,6 +961,23 @@ export default function SessionFlow({
             </select>
             <p className="text-xs text-stone-400">
               This helps us transcribe non-English feedback more accurately.
+            </p>
+          </div>
+
+          <div className="border border-stone-200 bg-stone-50 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-mono uppercase tracking-[0.18em] text-stone-500">Interview progress</p>
+              <p className="text-xs text-stone-500">
+                {Math.min(interviewIndex + (interviewPhase === "complete" ? 1 : 0), questions.length)} / {questions.length}
+              </p>
+            </div>
+            <p className="text-sm text-stone-700">
+              {interviewPhase === "idle" && "Press Start interview when you are ready."}
+              {interviewPhase === "preparing" && "Preparing camera and recording..."}
+              {interviewPhase === "asking" && `AI is asking: ${questions[interviewIndex] ?? ""}`}
+              {interviewPhase === "listening" && "Recording your answer... we auto-detect silence, or you can tap Stop Answer anytime."}
+              {interviewPhase === "transcribing" && "Transcribing your answer, next question coming up..."}
+              {interviewPhase === "complete" && "Interview complete. Opening preview..."}
             </p>
           </div>
 
@@ -701,26 +1035,38 @@ export default function SessionFlow({
           </div>
 
           {/* Controls */}
-          <div className="flex gap-3">
-            {!isRecording ? (
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={runInterviewFlow}
+              disabled={interviewStarted || !cameraReady || !!cameraError}
+              className="flex-1 min-w-48 flex items-center justify-center gap-2 bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors touch-manipulation"
+            >
+              <Video size={16} />
+              {interviewStarted ? "Interview running" : "Start Interview"}
+            </button>
+
+            {isAnswerRecording && (
               <button
-                onClick={startRecording}
-                disabled={!cameraReady || !!cameraError}
-              className="flex-1 flex items-center justify-center gap-2 bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors touch-manipulation"
-              >
-                <Video size={16} />
-                Start Recording
-              </button>
-            ) : (
-              <button
-                onClick={stopRecording}
-                className="flex-1 flex items-center justify-center gap-2 bg-red-600 px-6 py-4 text-sm font-semibold text-white hover:bg-red-700 transition-colors touch-manipulation"
+                onClick={() => stopAnswerRef.current?.()}
+                className="flex-1 min-w-48 flex items-center justify-center gap-2 bg-stone-900 px-6 py-4 text-sm font-semibold text-white hover:bg-black transition-colors touch-manipulation"
               >
                 <StopCircle size={16} />
-                Stop &amp; Preview
+                Stop Answer
               </button>
             )}
           </div>
+
+          {qaPairs.length > 0 && (
+            <div className="border border-stone-200 bg-white px-4 py-3 space-y-2 max-h-40 overflow-y-auto">
+              <p className="text-xs font-mono uppercase tracking-[0.16em] text-stone-400">Captured answers</p>
+              {qaPairs.map((pair, idx) => (
+                <div key={`${pair.question}-${idx}`} className="text-xs text-stone-600 leading-relaxed">
+                  <p className="font-medium text-stone-700">Q{idx + 1}: {pair.question}</p>
+                  <p>A: {pair.answer}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Permission note */}
           {!cameraReady && !cameraError && (

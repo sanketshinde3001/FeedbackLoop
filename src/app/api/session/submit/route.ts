@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { transcribeVideoUrl } from "@/lib/deepgram";
-import { analyzeTranscript } from "@/lib/gemini";
+import { analyzeTranscript, generateInterviewClosing, type InterviewQAPair } from "@/lib/gemini";
 import { sendThankYouEmail } from "@/lib/email";
 import type { EmojiType, SentimentType } from "@/lib/supabase/types";
 
@@ -9,7 +9,13 @@ import type { EmojiType, SentimentType } from "@/lib/supabase/types";
 // Body: { token: string, emoji_type?: string, video_url?: string, audio_language?: string }
 // Uses service-role client — attendees are not Supabase auth users.
 export async function POST(request: NextRequest) {
-  let body: { token?: string; emoji_type?: string; video_url?: string; audio_language?: string };
+  let body: {
+    token?: string;
+    emoji_type?: string;
+    video_url?: string;
+    audio_language?: string;
+    qa_pairs?: InterviewQAPair[];
+  };
 
   try {
     body = await request.json();
@@ -18,6 +24,20 @@ export async function POST(request: NextRequest) {
   }
 
   const { token, emoji_type, video_url, audio_language } = body;
+  const qaPairs = Array.isArray(body.qa_pairs)
+    ? body.qa_pairs
+        .filter(
+          (p) =>
+            p &&
+            typeof p.question === "string" &&
+            typeof p.answer === "string" &&
+            p.question.trim().length > 0
+        )
+        .map((p) => ({
+          question: p.question.trim().slice(0, 300),
+          answer: p.answer.trim().slice(0, 1200),
+        }))
+    : [];
 
   // Validate token format before hitting DB
   if (!token || !/^[a-f0-9]{64}$/.test(token)) {
@@ -84,6 +104,11 @@ export async function POST(request: NextRequest) {
 
   // Get transcript from Deepgram (server-side, non-blocking on failure)
   let transcript: string | null = null;
+  const qaTranscript = qaPairs.length
+    ? qaPairs
+        .map((p, i) => `Q${i + 1}: ${p.question}\nA${i + 1}: ${p.answer}`)
+        .join("\n\n")
+    : null;
   if (video_url) {
     const result = await transcribeVideoUrl(video_url, selectedLanguage);
     if (result.success && result.transcript) {
@@ -107,6 +132,12 @@ export async function POST(request: NextRequest) {
       // Log other transcription errors but continue (non-blocking)
       console.warn("[submit] transcription failed:", result.error);
     }
+  }
+
+  if (!transcript && qaTranscript) {
+    transcript = qaTranscript;
+  } else if (transcript && qaTranscript) {
+    transcript = `${qaTranscript}\n\nFull transcript:\n${transcript}`;
   }
 
   // Run Gemini sentiment on the transcript (non-blocking on failure)
@@ -158,6 +189,21 @@ export async function POST(request: NextRequest) {
     .single();
 
   const sessionTitle = rows[0].session_title as string;
+  const personalizedClosing = await generateInterviewClosing({
+    attendeeName: attendeeRow?.name || "there",
+    sessionTitle,
+    qaPairs,
+  });
+
+  if (personalizedClosing) {
+    ai_conclusion = personalizedClosing;
+
+    await supabase
+      .from("responses")
+      .update({ ai_conclusion: personalizedClosing })
+      .eq("attendee_id", attendee_id)
+      .eq("session_id", session_id);
+  }
 
   if (attendeeRow?.email) {
     const emailResult = await sendThankYouEmail({
@@ -175,5 +221,5 @@ export async function POST(request: NextRequest) {
     console.warn("[submit] no email found for attendee", attendee_id);
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, closing_line: personalizedClosing ?? undefined });
 }
